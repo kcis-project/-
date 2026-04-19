@@ -290,6 +290,13 @@ header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.
 .card-edit-btn { font-size: .73rem; color: #888; background: none; border: 1px solid #e0e0e0;
                  border-radius: 7px; padding: 3px 10px; cursor: pointer; transition: all .15s; }
 .card-edit-btn:hover { background: #111; color: #fff; border-color: #111; }
+/* 업종 태그 선택 */
+.tag-select-wrap { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; }
+.tag-opt { padding: 4px 11px; border-radius: 16px; border: 1.5px solid #ddd;
+           font-size: .76rem; cursor: pointer; transition: all .15s; color: #555;
+           background: #fff; user-select: none; }
+.tag-opt:hover { border-color: #999; color: #111; }
+.tag-opt.selected { background: #111; color: #fff; border-color: #111; }
 .no-result { grid-column: 1/-1; text-align: center; color: #bbb; padding: 60px 0; }
 /* 툴팁 */
 #tooltip { position: fixed; z-index: 9999; max-width: 300px; background: #fff;
@@ -415,6 +422,17 @@ JS = r"""
 const CSV_DATA = __DATA_JSON__;
 let ALL_DATA = [...CSV_DATA];
 
+const JOB_TAGS = [
+  '기획','정책','광고','마케팅','금융','공기업(공공기관)','데이터','부동산',
+  'IT','국내정치','국가안보','국제기구','농업','언론','전략','컨설팅',
+  'ESG','개발','경영지원','인사','총무','물류','무역','교육','통계',
+  '관광','보험','자산운용업','철강','바이오','과학산업','반도체','증권사',
+  'PF','배터리','자동차','부품','타이어','사업개발','인플루언서','게임',
+  '투자','심사','기후','제조업','보안','생산기술','품질','방위산업',
+  'MD','생산관리','설계','로봇','차량제어','SW개발','미들웨어','영상','ROS',
+];
+const JOB_TAG_SET = new Set(JOB_TAGS);
+
 // ── Supabase 설정 ────────────────────────────────────────────────
 const SB_URL = 'https://vkrbdqzwvflrmgwelmfo.supabase.co';
 const SB_KEY = 'sb_publishable_J7WpyPZp2ttSFQA1_ZZB4g_mViK52fQ';
@@ -507,10 +525,10 @@ function buildFilters(){
   curBtn.textContent='현직';
   bar.appendChild(curBtn);
 
-  // 업종 태그 수집 (빈도순)
+  // 업종 태그 수집 (공식 목록만, 빈도순)
   const jobCount = {};
   ALL_DATA.forEach(p=>{
-    (p.job_type||'').split(/\s*,\s*/).filter(Boolean).forEach(t=>{
+    (p.job_type||'').split(/\s*,\s*/).filter(t=>JOB_TAG_SET.has(t)).forEach(t=>{
       jobCount[t] = (jobCount[t]||0) + 1;
     });
   });
@@ -598,6 +616,12 @@ function openEditModal(name){
   // 기본 정보
   document.getElementById('f-name').value = p.name||'';
   document.getElementById('li-url').value  = p.linkedin||'';
+
+  // 업종 태그 프리셀렉트
+  const existingTags = new Set((p.job_type||'').split(/\s*,\s*/).filter(Boolean));
+  document.querySelectorAll('.tag-opt').forEach(el=>{
+    el.classList.toggle('selected', existingTags.has(el.dataset.tag));
+  });
 
   // 경력
   clearSection('exp-rows');
@@ -987,9 +1011,11 @@ document.getElementById('modal-submit').addEventListener('click', async()=>{
       }).filter(obj=>Object.values(obj).some(v=>v));
   }
 
+  const selectedTags = [...document.querySelectorAll('.tag-opt.selected')].map(el=>el.dataset.tag);
   const payload = {
     name,
-    linkedin: document.getElementById('li-url').value.trim(),
+    linkedin:    document.getElementById('li-url').value.trim(),
+    job_type:    selectedTags.join(', '),
     experiences: collectRows('exp-rows',['company','role','period']),
     education:   collectRows('edu-rows',['school','major','period']),
     activities:  collectRows('act-rows',['name','role','period']),
@@ -1050,9 +1076,13 @@ function renderStats(){
   data.forEach(p=>{ if(p.year){ const y='20'+p.year; yearMap[y]=(yearMap[y]||0)+1; } });
   renderBars('year-bars', yearMap, total, '학번');
 
-  // 업종 분포
+  // 업종 분포 (공식 태그만, multi-select 합산)
   const jobMap = {};
-  data.forEach(p=>{ if(p.job_type){ jobMap[p.job_type]=(jobMap[p.job_type]||0)+1; } });
+  data.forEach(p=>{
+    (p.job_type||'').split(/\s*,\s*/).filter(t=>JOB_TAG_SET.has(t)).forEach(t=>{
+      jobMap[t] = (jobMap[t]||0) + 1;
+    });
+  });
   renderBars('job-bars', jobMap, total);
 
   // 현직/졸업 도넛
@@ -1092,6 +1122,17 @@ function renderDonut(current, alumni){
     <div class="legend-item"><div class="legend-dot" style="background:#111"></div>현직 ${current}명</div>
     <div class="legend-item"><div class="legend-dot" style="background:#eee;border:1px solid #ccc"></div>동문 ${alumni}명</div>`;
 }
+
+// 업종 태그 선택 UI 초기화
+(function initTagSelect(){
+  const wrap = document.getElementById('job-tag-select');
+  JOB_TAGS.forEach(tag=>{
+    const el = document.createElement('span');
+    el.className='tag-opt'; el.dataset.tag=tag; el.textContent=tag;
+    el.addEventListener('click', ()=>el.classList.toggle('selected'));
+    wrap.appendChild(el);
+  });
+})();
 
 attachTags(); buildFilters(); render(ALL_DATA); loadMembers();
 """
@@ -1182,6 +1223,12 @@ MODAL_HTML = """
       <div class="dyn-title">자격증</div>
       <div id="cert-rows"></div>
       <button id="add-cert" class="dyn-add">+ 자격증 추가</button>
+    </div>
+
+    <!-- 업종 / 관심 분야 -->
+    <div class="dyn-section">
+      <div class="dyn-title">업계 / 관심 분야 <span style="font-weight:400;color:#aaa;font-size:.75rem">(복수 선택 가능)</span></div>
+      <div class="tag-select-wrap" id="job-tag-select"></div>
     </div>
 
     <button id="modal-submit">제출하기</button>
