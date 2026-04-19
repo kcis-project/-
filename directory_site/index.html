@@ -1,58 +1,61 @@
 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>인원 디렉토리</title><style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-       background: #f4f5fb; color: #1a1a2e; }
-header { background: #fff; border-bottom: 1px solid #e8e8f0; padding: 18px 28px;
-         display: flex; align-items: center; gap: 16px; position: sticky; top: 0;
-         z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
-header h1 { font-size: 1.2rem; font-weight: 700; color: #2d2d5e; }
+       background: #f5f5f5; color: #111; }
+header { background: #fff; border-bottom: 1px solid #e8e8e8; padding: 18px 28px;
+         display: flex; align-items: center; gap: 12px; position: sticky; top: 0;
+         z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.02em; }
 .count { font-size: .82rem; color: #999; }
-#search { margin-left: auto; padding: 8px 16px; border: 1.5px solid #e0e0f0;
-          border-radius: 20px; font-size: .88rem; width: 240px; outline: none; }
-#search:focus { border-color: #5b5ef4; }
-#join-btn { padding: 8px 18px; background: #5b5ef4; color: #fff; border: none;
-            border-radius: 20px; font-size: .85rem; font-weight: 600; cursor: pointer;
-            transition: background .15s; white-space: nowrap; }
-#join-btn:hover { background: #4346d0; }
-.filter-bar { padding: 12px 28px; display: flex; gap: 8px; flex-wrap: wrap; background: #fff;
-              border-bottom: 1px solid #f0f0f8; }
-.fbtn { padding: 5px 13px; border-radius: 18px; border: 1.5px solid #dde;
-        background: #fff; font-size: .78rem; cursor: pointer; transition: all .15s; }
-.fbtn.active, .fbtn:hover { background: #5b5ef4; color: #fff; border-color: #5b5ef4; }
+#search { margin-left: auto; padding: 8px 16px; border: 1.5px solid #ddd;
+          border-radius: 20px; font-size: .88rem; width: 220px; outline: none; }
+#search:focus { border-color: #111; }
+.hdr-btn { padding: 8px 16px; color: #fff; border: none; border-radius: 20px;
+           font-size: .83rem; font-weight: 700; cursor: pointer; transition: background .15s;
+           white-space: nowrap; }
+#join-btn  { background: #111; }
+#join-btn:hover  { background: #333; }
+#stat-btn  { background: #555; }
+#stat-btn:hover  { background: #333; }
+.filter-bar { padding: 10px 28px; display: flex; gap: 8px; flex-wrap: wrap; background: #fff;
+              border-bottom: 1px solid #ebebeb; }
+.fbtn { padding: 5px 13px; border-radius: 18px; border: 1.5px solid #ddd;
+        background: #fff; font-size: .78rem; cursor: pointer; transition: all .15s; color: #555; }
+.fbtn.active, .fbtn:hover { background: #111; color: #fff; border-color: #111; }
 #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr));
         gap: 14px; padding: 20px 28px 48px; }
 .card { background: #fff; border-radius: 14px; padding: 18px;
-        box-shadow: 0 2px 8px rgba(0,0,0,.05); transition: .2s; }
-.card:hover { box-shadow: 0 5px 20px rgba(91,94,244,.12); transform: translateY(-2px); }
+        box-shadow: 0 1px 4px rgba(0,0,0,.07); transition: .2s; border: 1px solid #ebebeb; }
+.card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.12); transform: translateY(-2px); }
 .card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
-          background: linear-gradient(135deg,#5b5ef4,#a78bfa);
+          background: linear-gradient(135deg,#333,#777);
           display: flex; align-items: center; justify-content: center;
           color: #fff; font-weight: 700; font-size: 1rem; }
 .cname { font-size: .97rem; font-weight: 700; }
 .dept  { font-size: .75rem; color: #999; margin-top: 1px; }
-.cur-badge { display: inline-block; font-size: .78rem; color: #5b5ef4; font-weight: 600;
-             background: #f0f0ff; padding: 3px 9px; border-radius: 7px; margin-bottom: 8px; }
+.cur-badge { display: inline-block; font-size: .78rem; color: #111; font-weight: 600;
+             background: #f0f0f0; padding: 3px 9px; border-radius: 7px; margin-bottom: 8px; }
 /* 경력 */
 .exp-block { margin-bottom: 6px; }
 .exp-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; }
 .exp-company { font-size: .82rem; font-weight: 600; color: #222;
                cursor: pointer; border-bottom: 1px dashed #ccc; display: inline; }
-.exp-company:hover { color: #5b5ef4; }
+.exp-company:hover { color: #555; }
 .exp-sep { font-size: .82rem; color: #bbb; }
 .exp-detail { font-size: .75rem; color: #777; margin-top: 1px; }
 /* 섹션 토글 */
-.sec-toggle { margin-top: 8px; font-size: .75rem; color: #5b5ef4; cursor: pointer;
+.sec-toggle { margin-top: 8px; font-size: .75rem; color: #555; cursor: pointer;
               display: inline-block; }
 .extra { display: none; margin-top: 8px; }
 .extra.open { display: block; }
 .sec-title { font-size: .72rem; font-weight: 700; color: #aaa; text-transform: uppercase;
              letter-spacing: .05em; margin: 7px 0 3px; }
 .sec-item { font-size: .76rem; color: #555; padding: 2px 0;
-            border-bottom: 1px solid #f8f8f8; }
+            border-bottom: 1px solid #f5f5f5; }
 .sec-item:last-child { border: none; }
 .linkedin-link { display: inline-block; margin-top: 8px; font-size: .76rem;
-                 color: #0a66c2; text-decoration: none; }
+                 color: #333; text-decoration: none; font-weight: 600; }
 .linkedin-link:hover { text-decoration: underline; }
 .no-result { grid-column: 1/-1; text-align: center; color: #bbb; padding: 60px 0; }
 /* 툴팁 */
@@ -66,96 +69,145 @@ header h1 { font-size: 1.2rem; font-weight: 700; color: #2d2d5e; }
 .tip-thumb { width: 44px; height: 44px; object-fit: contain; float: right;
              margin-left: 8px; border-radius: 6px; }
 .tip-src   { font-size: .68rem; color: #ccc; margin-top: 6px; }
-/* ── 모달 ── */
-#modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
-                 z-index: 200; align-items: center; justify-content: center; }
-#modal-overlay.open { display: flex; }
-#modal { background: #fff; border-radius: 18px; width: 560px; max-width: 96vw;
-         max-height: 90vh; overflow-y: auto; padding: 28px 30px 24px;
-         box-shadow: 0 12px 48px rgba(0,0,0,.22); position: relative; }
-#modal h2 { font-size: 1.1rem; font-weight: 700; color: #2d2d5e; margin-bottom: 20px; }
+/* ── 공통 모달 ── */
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5);
+           z-index: 200; align-items: center; justify-content: center; }
+.overlay.open { display: flex; }
+.modal-box { background: #fff; border-radius: 18px; width: 560px; max-width: 96vw;
+             max-height: 90vh; overflow-y: auto; padding: 28px 30px 24px;
+             box-shadow: 0 12px 48px rgba(0,0,0,.22); position: relative; }
+.modal-box h2 { font-size: 1.1rem; font-weight: 800; color: #111; margin-bottom: 20px; }
 .modal-close { position: absolute; top: 18px; right: 20px; background: none; border: none;
                font-size: 1.3rem; cursor: pointer; color: #999; line-height: 1; }
-.modal-close:hover { color: #333; }
+.modal-close:hover { color: #111; }
 /* LinkedIn 로그인 단계 */
-#login-step { margin-bottom: 16px; padding: 14px 16px; background: #fffbf0;
-              border: 1.5px solid #ffe8a0; border-radius: 12px; }
+#login-step { margin-bottom: 16px; padding: 14px 16px; background: #f8f8f8;
+              border: 1.5px solid #ddd; border-radius: 12px; }
 #login-step.hidden { display: none; }
-.login-step-title { font-size: .82rem; font-weight: 700; color: #b8860b; margin-bottom: 6px; }
+.login-step-title { font-size: .82rem; font-weight: 700; color: #333; margin-bottom: 6px; }
 .login-step-desc { font-size: .78rem; color: #888; margin-bottom: 10px; line-height: 1.5; }
-#li-login-btn { padding: 8px 18px; background: #0a66c2; color: #fff; border: none;
+#li-login-btn { padding: 8px 18px; background: #111; color: #fff; border: none;
                 border-radius: 10px; font-size: .83rem; font-weight: 600; cursor: pointer; }
-#li-login-btn:hover { background: #085396; }
-#li-login-btn:disabled { background: #aac4e0; cursor: default; }
+#li-login-btn:hover { background: #333; }
+#li-login-btn:disabled { background: #999; cursor: default; }
 #login-poll-msg { font-size: .78rem; color: #888; margin-top: 8px; min-height: 18px; }
 /* LinkedIn URL step */
-#li-step { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #f0f0f0; }
-#li-step label { font-size: .8rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px; }
+#li-step { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #eee; }
+#li-step label { font-size: .8rem; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
 .li-row { display: flex; gap: 8px; }
-.li-row input { flex: 1; padding: 8px 12px; border: 1.5px solid #e0e0f0; border-radius: 10px;
+.li-row input { flex: 1; padding: 8px 12px; border: 1.5px solid #ddd; border-radius: 10px;
                 font-size: .85rem; outline: none; }
-.li-row input:focus { border-color: #5b5ef4; }
-.li-fetch-btn { padding: 8px 14px; background: #0a66c2; color: #fff; border: none;
+.li-row input:focus { border-color: #111; }
+.li-fetch-btn { padding: 8px 14px; background: #111; color: #fff; border: none;
                 border-radius: 10px; font-size: .82rem; font-weight: 600; cursor: pointer;
                 white-space: nowrap; }
-.li-fetch-btn:hover { background: #085396; }
-.li-fetch-btn:disabled { background: #aac4e0; cursor: default; }
+.li-fetch-btn:hover { background: #333; }
+.li-fetch-btn:disabled { background: #999; cursor: default; }
 #li-status { font-size: .78rem; margin-top: 6px; min-height: 18px; color: #888; }
 /* 폼 필드 */
 .form-field { margin-bottom: 14px; }
 .form-field label { font-size: .8rem; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
-.form-field input[type=text] { width: 100%; padding: 8px 12px; border: 1.5px solid #e0e0f0;
+.form-field input[type=text] { width: 100%; padding: 8px 12px; border: 1.5px solid #ddd;
                                border-radius: 10px; font-size: .85rem; outline: none; }
-.form-field input:focus { border-color: #5b5ef4; }
+.form-field input:focus { border-color: #111; }
 /* 동적 행 섹션 */
 .dyn-section { margin-bottom: 16px; }
-.dyn-title { font-size: .82rem; font-weight: 700; color: #5b5ef4; margin-bottom: 8px; }
+.dyn-title { font-size: .82rem; font-weight: 700; color: #333; margin-bottom: 8px; }
 .dyn-row { display: grid; gap: 6px; margin-bottom: 8px; padding: 10px 12px;
-           background: #f8f8fc; border-radius: 10px; position: relative; }
-.dyn-row input { padding: 6px 10px; border: 1.5px solid #e0e0f0; border-radius: 8px;
+           background: #f8f8f8; border-radius: 10px; position: relative; }
+.dyn-row input { padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 8px;
                  font-size: .82rem; outline: none; background: #fff; }
-.dyn-row input:focus { border-color: #5b5ef4; }
+.dyn-row input:focus { border-color: #111; }
 .dyn-row input::placeholder { color: #ccc; }
-.dyn-period { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .dyn-del { position: absolute; top: 8px; right: 10px; background: none; border: none;
            color: #ccc; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0; }
 .dyn-del:hover { color: #e55; }
-.dyn-add { font-size: .78rem; color: #5b5ef4; background: none; border: 1.5px dashed #c0c0f0;
+.dyn-add { font-size: .78rem; color: #555; background: none; border: 1.5px dashed #ccc;
            border-radius: 8px; padding: 6px 14px; cursor: pointer; width: 100%; }
-.dyn-add:hover { background: #f0f0ff; }
+.dyn-add:hover { background: #f0f0f0; }
 /* 제출 버튼 */
-#modal-submit { width: 100%; padding: 12px; background: #5b5ef4; color: #fff; border: none;
+#modal-submit { width: 100%; padding: 12px; background: #111; color: #fff; border: none;
                 border-radius: 12px; font-size: .95rem; font-weight: 700; cursor: pointer;
                 margin-top: 8px; transition: background .15s; }
-#modal-submit:hover { background: #4346d0; }
-#modal-submit:disabled { background: #b0b2f5; cursor: default; }
+#modal-submit:hover { background: #333; }
+#modal-submit:disabled { background: #999; cursor: default; }
 #form-msg { text-align: center; font-size: .82rem; margin-top: 10px; min-height: 20px; }
-.member-badge { display: inline-block; font-size: .68rem; background: #e8f4fd; color: #0a66c2;
+.member-badge { display: inline-block; font-size: .68rem; background: #f0f0f0; color: #555;
                 border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
-.cur-emp-badge { display: inline-block; font-size: .67rem; background: #fff3e0; color: #e65100;
+.cur-emp-badge { display: inline-block; font-size: .67rem; background: #111; color: #fff;
                  border-radius: 4px; padding: 1px 6px; margin-left: 5px; vertical-align: middle; }
-.job-tag { font-size: .73rem; color: #5b5ef4; margin-bottom: 5px;
-           background: #f0f0ff; display: inline-block; padding: 2px 8px;
-           border-radius: 6px; margin-bottom: 7px; }
+.job-tag { font-size: .73rem; color: #555; background: #f0f0f0; display: inline-block;
+           padding: 2px 8px; border-radius: 6px; margin-bottom: 7px; }
 .hidden { display: none !important; }
 /* ── 회사명 자동완성 ── */
 .ac-wrap { position: relative; }
 .ac-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff;
-           border: 1.5px solid #c8c8f0; border-radius: 10px;
-           box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 500;
+           border: 1.5px solid #ddd; border-radius: 10px;
+           box-shadow: 0 6px 20px rgba(0,0,0,.1); z-index: 500;
            max-height: 200px; overflow-y: auto; display: none; }
 .ac-list.open { display: block; }
 .ac-item { padding: 7px 12px; font-size: .82rem; cursor: pointer;
-           display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5fb; }
+           display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5f5; }
 .ac-item:last-child { border: none; }
-.ac-item:hover, .ac-item.focused { background: #f0f0ff; }
+.ac-item:hover, .ac-item.focused { background: #f5f5f5; }
 .ac-logo { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
 .ac-badge { font-size: .63rem; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
-.ac-badge.local  { background: #e8f0ff; color: #5b5ef4; }
-.ac-badge.remote { background: #f4f4f4; color: #aaa; }
-</style></head><body><header>  <h1>인원 디렉토리 <span class="count" id="cnt"></span></h1>  <input id="search" type="text" placeholder="이름·학과·회사·수상 통합 검색…">  <button id="join-btn">회원가입</button></header><div class="filter-bar" id="fbar">  <button class="fbtn active" data-filter="">전체</button></div><div id="grid"></div><div id="tooltip"></div>
-<div id="modal-overlay">
-<div id="modal">
+.ac-badge.local  { background: #111; color: #fff; }
+.ac-badge.remote { background: #eee; color: #888; }
+/* ── 통계 모달 ── */
+#stat-modal { width: 620px; }
+.stat-section { margin-bottom: 24px; }
+.stat-section h3 { font-size: .85rem; font-weight: 700; color: #111; margin-bottom: 12px;
+                   padding-bottom: 6px; border-bottom: 2px solid #111; }
+.stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.stat-label { font-size: .78rem; color: #333; width: 120px; flex-shrink: 0;
+              white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-bar-wrap { flex: 1; background: #f0f0f0; border-radius: 4px; height: 18px; overflow: hidden; }
+.stat-bar { height: 100%; background: #111; border-radius: 4px;
+            transition: width .6s ease; display: flex; align-items: center;
+            justify-content: flex-end; padding-right: 6px; }
+.stat-bar span { font-size: .65rem; color: #fff; font-weight: 700; white-space: nowrap; }
+.stat-val { font-size: .78rem; color: #555; width: 36px; text-align: right; flex-shrink: 0; }
+.stat-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+.stat-card { background: #f8f8f8; border-radius: 12px; padding: 16px; text-align: center; }
+.stat-card .big { font-size: 2rem; font-weight: 800; color: #111; }
+.stat-card .label { font-size: .78rem; color: #777; margin-top: 4px; }
+.donut-wrap { display: flex; align-items: center; gap: 20px; }
+.donut-legend { display: flex; flex-direction: column; gap: 8px; }
+.legend-item { display: flex; align-items: center; gap: 8px; font-size: .8rem; }
+.legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+</style></head><body><header>  <h1>인원 디렉토리 <span class="count" id="cnt"></span></h1>  <input id="search" type="text" placeholder="이름·학과·회사·수상 통합 검색…">  <button id="stat-btn" class="hdr-btn">통계</button>  <button id="join-btn" class="hdr-btn">회원가입</button></header><div class="filter-bar" id="fbar">  <button class="fbtn active" data-filter="">전체</button></div><div id="grid"></div><div id="tooltip"></div>
+<!-- 통계 모달 -->
+<div id="stat-overlay" class="overlay">
+<div id="stat-modal" class="modal-box">
+  <button id="stat-close" class="modal-close" title="닫기">✕</button>
+  <h2>인원 통계</h2>
+  <div class="stat-cards">
+    <div class="stat-card"><div class="big" id="st-total">-</div><div class="label">전체 인원</div></div>
+    <div class="stat-card"><div class="big" id="st-current">-</div><div class="label">현직자</div></div>
+  </div>
+  <div class="stat-section">
+    <h3>현직자 비율</h3>
+    <div class="donut-wrap">
+      <svg id="donut-svg" width="128" height="128" viewBox="0 0 128 128"></svg>
+      <div id="donut-legend" class="donut-legend"></div>
+      <div style="margin-left:auto;font-size:2rem;font-weight:800;color:#111" id="st-pct">-</div>
+    </div>
+  </div>
+  <div class="stat-section">
+    <h3>학번별 분포</h3>
+    <div id="year-bars"></div>
+  </div>
+  <div class="stat-section">
+    <h3>업종별 분포</h3>
+    <div id="job-bars"></div>
+  </div>
+</div>
+</div>
+
+<!-- 회원가입 모달 -->
+<div id="modal-overlay" class="overlay">
+<div id="modal" class="modal-box">
   <button class="modal-close" title="닫기">✕</button>
   <h2>회원 정보 등록</h2>
 
@@ -455,7 +507,6 @@ function attachTags(){
 
 // ── 회원가입 모달 ────────────────────────────────────────────────
 const overlay = document.getElementById('modal-overlay');
-const modal   = document.getElementById('modal');
 
 document.getElementById('join-btn').addEventListener('click', async ()=>{
   overlay.classList.add('open');
@@ -745,11 +796,92 @@ document.getElementById('modal-submit').addEventListener('click', async()=>{
     setTimeout(closeModal, 1600);
   }catch(e){
     document.getElementById('form-msg').style.color='#e55';
-    document.getElementById('form-msg').textContent='오류: '+e.message;
+    document.getElementById('form-msg').textContent=friendlyError(e.message);
   }finally{
     btn.disabled=false; btn.textContent='제출하기';
   }
 });
+
+// ── 한국어 오류 메시지 ────────────────────────────────────────────
+function friendlyError(msg){
+  if(!msg) return '오류가 발생했습니다.';
+  if(msg.includes('unique')||msg.includes('duplicate')||msg.includes('already exists')) return '이미 등록된 이름입니다.';
+  if(msg.includes('not-null')||msg.includes('null value')||msg.includes('violates')) return '필수 항목을 입력해주세요.';
+  if(msg.includes('network')||msg.includes('fetch')||msg.includes('Failed')) return '네트워크 오류. 인터넷 연결을 확인해주세요.';
+  if(msg.includes('timeout')) return '요청 시간이 초과됐습니다. 다시 시도해주세요.';
+  return '오류가 발생했습니다. 다시 시도해주세요.';
+}
+
+// ── 통계 모달 ─────────────────────────────────────────────────────
+document.getElementById('stat-btn').addEventListener('click', ()=>{
+  document.getElementById('stat-overlay').classList.add('open');
+  renderStats();
+});
+document.getElementById('stat-close').addEventListener('click', ()=>{
+  document.getElementById('stat-overlay').classList.remove('open');
+});
+document.getElementById('stat-overlay').addEventListener('click', e=>{
+  if(e.target===document.getElementById('stat-overlay'))
+    document.getElementById('stat-overlay').classList.remove('open');
+});
+
+function renderStats(){
+  const data = ALL_DATA;
+  const total = data.length;
+  const currentCount = data.filter(p=>p.is_current).length;
+
+  // 요약 카드
+  document.getElementById('st-total').textContent   = total;
+  document.getElementById('st-current').textContent = currentCount;
+  document.getElementById('st-pct').textContent     = total ? Math.round(currentCount/total*100)+'%' : '0%';
+
+  // 학번 분포
+  const yearMap = {};
+  data.forEach(p=>{ if(p.year){ const y='20'+p.year; yearMap[y]=(yearMap[y]||0)+1; } });
+  renderBars('year-bars', yearMap, total, '학번');
+
+  // 업종 분포
+  const jobMap = {};
+  data.forEach(p=>{ if(p.job_type){ jobMap[p.job_type]=(jobMap[p.job_type]||0)+1; } });
+  renderBars('job-bars', jobMap, total);
+
+  // 현직/졸업 도넛
+  renderDonut(currentCount, total - currentCount);
+}
+
+function renderBars(elId, map, total, suffix=''){
+  const el = document.getElementById(elId);
+  const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const max = sorted[0]?.[1]||1;
+  el.innerHTML = sorted.map(([k,v])=>{
+    const pct = Math.round(v/max*100);
+    return `<div class="stat-row">
+      <div class="stat-label">${k}${suffix}</div>
+      <div class="stat-bar-wrap">
+        <div class="stat-bar" style="width:${pct}%"><span>${v}명</span></div>
+      </div>
+      <div class="stat-val">${Math.round(v/total*100)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDonut(current, alumni){
+  const total = current + alumni;
+  const pct = total ? Math.round(current/total*100) : 0;
+  const r = 54, cx = 64, cy = 64;
+  const circ = 2*Math.PI*r;
+  const dash = circ * pct / 100;
+  document.getElementById('donut-svg').innerHTML = `
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eee" stroke-width="16"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#111" stroke-width="16"
+      stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${circ*0.25}"
+      stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
+    <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
+      font-size="18" font-weight="800" fill="#111">${pct}%</text>`;
+  document.getElementById('donut-legend').innerHTML = `
+    <div class="legend-item"><div class="legend-dot" style="background:#111"></div>현직 ${current}명</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#eee;border:1px solid #ccc"></div>동문 ${alumni}명</div>`;
+}
 
 attachTags(); buildFilters(); render(ALL_DATA); loadMembers();
 </script></body></html>
