@@ -269,8 +269,10 @@ header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.
 .exp-block { margin-bottom: 6px; }
 .exp-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; }
 .exp-company { font-size: .82rem; font-weight: 600; color: #222;
-               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline; }
+               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline-flex;
+               align-items: center; gap: 4px; }
 .exp-company:hover { color: #555; }
+.co-logo { width: 14px; height: 14px; object-fit: contain; border-radius: 2px; flex-shrink: 0; }
 .exp-sep { font-size: .82rem; color: #bbb; }
 .exp-detail { font-size: .75rem; color: #777; margin-top: 1px; }
 /* 섹션 토글 */
@@ -456,6 +458,17 @@ async function sbInsertOrUpdate(data){
 
 function av(n){ return (n||'?')[0]; }
 
+function getLogoUrl(name){
+  const clean = name
+    .replace(/주식회사|유한회사|\(주\)|\(유\)|㈜|㈔|\(재\)|\(사\)|코리아|Korea|KOREA/g,'')
+    .replace(/\([^)]*\)/g,'')
+    .replace(/[^a-zA-Z0-9가-힣]/g,'')
+    .trim().toLowerCase();
+  // 한글만 있으면 영문 변환 불가 → 도메인 추정 불가
+  if(/^[가-힣]+$/.test(clean)) return '';
+  return `https://logo.clearbit.com/${clean}.com`;
+}
+
 function renderCard(p){
   const memberBadge  = p._member    ? '<span class="member-badge">자기소개</span>' : '';
   const curBadge     = p.is_current ? ' <span class="cur-emp-badge">현직</span>' : '';
@@ -465,9 +478,11 @@ function renderCard(p){
     const detail = e.text && e.text !== e.company
       ? e.text.replace(e.company,'').replace(/^[\s\·\-—]+/,'') : '';
     const parts = (e.company||'').split(/\s*[,，]\s*/).map(s=>s.trim()).filter(Boolean);
-    const compHtml = parts.map(pt=>
-      `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${pt}</span>`
-    ).join('<span class="exp-sep">, </span>');
+    const compHtml = parts.map(pt=>{
+      const logo = getLogoUrl(pt);
+      const img  = logo ? `<img class="co-logo" src="${logo}" alt="" onerror="this.remove()">` : '';
+      return `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${img}${pt}</span>`;
+    }).join('<span class="exp-sep">, </span>');
     return `<div class="exp-block">
        <div class="exp-company-line">${compHtml}</div>
        ${detail ? `<div class="exp-detail">${detail}</div>` : ''}
