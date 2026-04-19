@@ -1,0 +1,8 @@
+session.json
+members.json
+__pycache__/
+*.pyc
+debug_*
+notion_*.csv
+members_structured*.csv
+*.png

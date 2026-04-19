@@ -1,0 +1,7 @@
+session.json
+__pycache__
+*.pyc
+*.png
+debug_*
+notion_*
+*.csv

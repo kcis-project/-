@@ -1,0 +1,1008 @@
+"""
+build_site.py
+Notion CSV → 인원 디렉토리 웹페이지(index.html) 생성
+"""
+
+import csv, json, os, re, sys
+
+CSV_PATH = os.path.join(os.path.dirname(__file__), "notion_6f3e0c2cd60182a791ce81c13b66759f_source_.csv")
+OUT_PATH = os.path.join(os.path.dirname(__file__), "directory_site", "index.html")
+
+TIMESTAMP_RE = re.compile(r'^\d{4}년 \d+월 \d+일')
+DEPT_RE      = re.compile(r'.+\((\d{2}|\d{4})\)')
+DATE_RE      = re.compile(r"[\'\`]?\d{2,4}[.\-\/~]")
+LINKEDIN_RE  = re.compile(r'https?://(?:www\.)?linkedin\.com/in/\S+')
+
+# 섹션 헤더 키워드 → 내부 키
+SECTION_MAP = {
+    '직장': 'exp', '경력': 'exp', '경험': 'exp',
+    '학력': 'edu', '교육': 'edu',
+    '수상': 'award', '수상경력': 'award', '수상 경력': 'award',
+    '자격증': 'cert', '면허': 'cert', '자격': 'cert',
+    '링크': 'link', '링크드인': 'link',
+    '기타': 'etc', '관심사': 'etc', '특기': 'etc',
+    '활동': 'etc', '봉사': 'etc', '프로젝트': 'etc',
+}
+
+
+def is_noise(text):
+    t = text.strip()
+    return (not t or TIMESTAMP_RE.match(t) or t in ('인원 리스트', '이름')
+            or len(t) < 2)
+
+
+def extract_company(text):
+    """경력 텍스트에서 회사명만 추출 (날짜·괄호 제거)."""
+    clean = re.sub(r'\([^)]*\)', '', text)          # 괄호 내용 제거
+    clean = re.sub(r"[\'\`]?\d{2,4}[.\-\/~]\S*", '', clean)  # 날짜 제거
+    clean = re.split(r'[-~·]', clean)[0]            # 구분자 앞만
+    clean = clean.lstrip('•·∙*※ \t').strip()
+    # 숫자 접두사 제거 (1. 2. 3.)
+    clean = re.sub(r'^\d+\.\s*', '', clean).strip()
+    return clean[:40] if clean else text[:40]
+
+
+def parse_experiences(lines):
+    """경력 라인 목록을 회사 단위로 묶어 반환."""
+    entries = []
+    cur_company = None
+    cur_details = []
+
+    def flush():
+        if cur_company:
+            detail_str = ' / '.join(cur_details) if cur_details else ''
+            entries.append({
+                'company': extract_company(cur_company),
+                'text': cur_company + (' — ' + detail_str if detail_str else '')
+            })
+
+    for line in lines:
+        if not line or len(line) < 2:
+            continue
+        is_detail = (line[0] in ('-', '·', '∙') or
+                     (line.startswith(' ') and cur_company))
+        is_numbered = bool(re.match(r'^\d+\.\s', line))
+        is_bullet   = line[0] in ('•', '*', '※')
+
+        if is_numbered or is_bullet:
+            flush()
+            cur_company = line.lstrip('•·∙*※0123456789. \t')
+            cur_details = []
+        elif is_detail and cur_company:
+            cur_details.append(line.lstrip('-·∙ \t'))
+        elif DATE_RE.search(line) and not cur_company:
+            # 날짜가 있는 첫 줄 → 새 경력 시작
+            flush()
+            cur_company = line
+            cur_details = []
+        elif cur_company:
+            # 이전 회사의 추가 정보
+            if DATE_RE.search(line) or len(line) < 30:
+                cur_details.append(line)
+            else:
+                flush()
+                cur_company = line
+                cur_details = []
+        else:
+            cur_company = line
+            cur_details = []
+
+    flush()
+    return entries
+
+
+def parse_person(raw):
+    lines = [l.rstrip() for l in raw.split('\n')]
+    non_empty = [l.strip() for l in lines if l.strip()]
+    if not non_empty or is_noise(non_empty[0]):
+        return None
+
+    name = non_empty[0]
+    if re.search(r'^\d', name) or 'http' in name or TIMESTAMP_RE.match(name):
+        return None
+    if len(name) > 20 or len(name) < 2:
+        return None
+
+    # 학과·학번
+    dept_lines, year = [], ''
+    for line in non_empty[1:6]:
+        m = DEPT_RE.match(line)
+        if m:
+            dept_lines.append(line)
+            if not year:
+                year = m.group(1)
+
+    # LinkedIn
+    linkedin = ''
+    for line in non_empty:
+        m = LINKEDIN_RE.search(line)
+        if m:
+            linkedin = m.group(0).rstrip(');,')
+            break
+
+    # 섹션 분류
+    buckets = {'exp': [], 'edu': [], 'award': [], 'cert': [], 'link': [], 'etc': []}
+    cur_bucket = 'exp'   # 기본은 경력
+
+    for line in non_empty[len(dept_lines)+1:]:
+        stripped = line.strip('[]· \t')
+        # 섹션 헤더?
+        if (line.startswith('[') and line.endswith(']')) or stripped in SECTION_MAP:
+            key = SECTION_MAP.get(stripped, SECTION_MAP.get(line.strip('[]'), None))
+            if key:
+                cur_bucket = key
+                continue
+        if 'linkedin.com' in line or 'github.com' in line:
+            continue
+        buckets[cur_bucket].append(line.strip())
+
+    # 경력 파싱 (회사 단위로 묶기)
+    experiences = parse_experiences(buckets['exp'])
+
+    # 현재 재직 중
+    current = ''
+    for exp in experiences:
+        if '재직' in exp['text'] or '현재' in exp['text'] or '~)' in exp['text']:
+            current = exp['company']
+            break
+    if not current and experiences:
+        current = experiences[0]['company']
+
+    return {
+        'name':        name,
+        'dept':        ' / '.join(dept_lines),
+        'year':        year,
+        'current':     current,
+        'experiences': experiences[:10],
+        'education':   [l for l in buckets['edu']  if l],
+        'awards':      [l for l in buckets['award'] if l],
+        'certs':       [l for l in buckets['cert']  if l],
+        'etc':         [l for l in buckets['etc']   if l],
+        'linkedin':    linkedin,
+    }
+
+
+def load_persons(csv_path):
+    persons = []
+    with open(csv_path, encoding='utf-8-sig') as f:
+        for row in csv.reader(f):
+            if not row:
+                continue
+            cell = row[0].strip()
+            if is_noise(cell):
+                continue
+            p = parse_person(cell)
+            if p:
+                persons.append(p)
+    # 이름 기준 중복 제거 (경력 정보가 더 많은 쪽 유지)
+    seen = {}
+    for p in persons:
+        name = p['name']
+        if name not in seen:
+            seen[name] = p
+        else:
+            # 경력 수가 더 많은 쪽으로 덮어쓰기
+            prev = seen[name]
+            if len(p['experiences']) > len(prev['experiences']):
+                seen[name] = p
+    persons = list(seen.values())
+    persons.sort(key=lambda x: x['name'])
+    return persons
+
+
+# ── HTML ──────────────────────────────────────────────────────────
+CSS = """
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+       background: #f4f5fb; color: #1a1a2e; }
+header { background: #fff; border-bottom: 1px solid #e8e8f0; padding: 18px 28px;
+         display: flex; align-items: center; gap: 16px; position: sticky; top: 0;
+         z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+header h1 { font-size: 1.2rem; font-weight: 700; color: #2d2d5e; }
+.count { font-size: .82rem; color: #999; }
+#search { margin-left: auto; padding: 8px 16px; border: 1.5px solid #e0e0f0;
+          border-radius: 20px; font-size: .88rem; width: 240px; outline: none; }
+#search:focus { border-color: #5b5ef4; }
+#join-btn { padding: 8px 18px; background: #5b5ef4; color: #fff; border: none;
+            border-radius: 20px; font-size: .85rem; font-weight: 600; cursor: pointer;
+            transition: background .15s; white-space: nowrap; }
+#join-btn:hover { background: #4346d0; }
+.filter-bar { padding: 12px 28px; display: flex; gap: 8px; flex-wrap: wrap; background: #fff;
+              border-bottom: 1px solid #f0f0f8; }
+.fbtn { padding: 5px 13px; border-radius: 18px; border: 1.5px solid #dde;
+        background: #fff; font-size: .78rem; cursor: pointer; transition: all .15s; }
+.fbtn.active, .fbtn:hover { background: #5b5ef4; color: #fff; border-color: #5b5ef4; }
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr));
+        gap: 14px; padding: 20px 28px 48px; }
+.card { background: #fff; border-radius: 14px; padding: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.05); transition: .2s; }
+.card:hover { box-shadow: 0 5px 20px rgba(91,94,244,.12); transform: translateY(-2px); }
+.card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+          background: linear-gradient(135deg,#5b5ef4,#a78bfa);
+          display: flex; align-items: center; justify-content: center;
+          color: #fff; font-weight: 700; font-size: 1rem; }
+.cname { font-size: .97rem; font-weight: 700; }
+.dept  { font-size: .75rem; color: #999; margin-top: 1px; }
+.cur-badge { display: inline-block; font-size: .78rem; color: #5b5ef4; font-weight: 600;
+             background: #f0f0ff; padding: 3px 9px; border-radius: 7px; margin-bottom: 8px; }
+/* 경력 */
+.exp-block { margin-bottom: 6px; }
+.exp-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; }
+.exp-company { font-size: .82rem; font-weight: 600; color: #222;
+               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline; }
+.exp-company:hover { color: #5b5ef4; }
+.exp-sep { font-size: .82rem; color: #bbb; }
+.exp-detail { font-size: .75rem; color: #777; margin-top: 1px; }
+/* 섹션 토글 */
+.sec-toggle { margin-top: 8px; font-size: .75rem; color: #5b5ef4; cursor: pointer;
+              display: inline-block; }
+.extra { display: none; margin-top: 8px; }
+.extra.open { display: block; }
+.sec-title { font-size: .72rem; font-weight: 700; color: #aaa; text-transform: uppercase;
+             letter-spacing: .05em; margin: 7px 0 3px; }
+.sec-item { font-size: .76rem; color: #555; padding: 2px 0;
+            border-bottom: 1px solid #f8f8f8; }
+.sec-item:last-child { border: none; }
+.linkedin-link { display: inline-block; margin-top: 8px; font-size: .76rem;
+                 color: #0a66c2; text-decoration: none; }
+.linkedin-link:hover { text-decoration: underline; }
+.no-result { grid-column: 1/-1; text-align: center; color: #bbb; padding: 60px 0; }
+/* 툴팁 */
+#tooltip { position: fixed; z-index: 9999; max-width: 300px; background: #fff;
+           border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.14);
+           padding: 14px; display: none; pointer-events: none; border: 1px solid #eee; }
+#tooltip.visible { display: block; animation: fi .15s ease; }
+@keyframes fi { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
+.tip-title { font-size: .9rem; font-weight: 700; margin-bottom: 5px; }
+.tip-body  { font-size: .78rem; color: #555; line-height: 1.5; }
+.tip-thumb { width: 44px; height: 44px; object-fit: contain; float: right;
+             margin-left: 8px; border-radius: 6px; }
+.tip-src   { font-size: .68rem; color: #ccc; margin-top: 6px; }
+/* ── 모달 ── */
+#modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+                 z-index: 200; align-items: center; justify-content: center; }
+#modal-overlay.open { display: flex; }
+#modal { background: #fff; border-radius: 18px; width: 560px; max-width: 96vw;
+         max-height: 90vh; overflow-y: auto; padding: 28px 30px 24px;
+         box-shadow: 0 12px 48px rgba(0,0,0,.22); position: relative; }
+#modal h2 { font-size: 1.1rem; font-weight: 700; color: #2d2d5e; margin-bottom: 20px; }
+.modal-close { position: absolute; top: 18px; right: 20px; background: none; border: none;
+               font-size: 1.3rem; cursor: pointer; color: #999; line-height: 1; }
+.modal-close:hover { color: #333; }
+/* LinkedIn 로그인 단계 */
+#login-step { margin-bottom: 16px; padding: 14px 16px; background: #fffbf0;
+              border: 1.5px solid #ffe8a0; border-radius: 12px; }
+#login-step.hidden { display: none; }
+.login-step-title { font-size: .82rem; font-weight: 700; color: #b8860b; margin-bottom: 6px; }
+.login-step-desc { font-size: .78rem; color: #888; margin-bottom: 10px; line-height: 1.5; }
+#li-login-btn { padding: 8px 18px; background: #0a66c2; color: #fff; border: none;
+                border-radius: 10px; font-size: .83rem; font-weight: 600; cursor: pointer; }
+#li-login-btn:hover { background: #085396; }
+#li-login-btn:disabled { background: #aac4e0; cursor: default; }
+#login-poll-msg { font-size: .78rem; color: #888; margin-top: 8px; min-height: 18px; }
+/* LinkedIn URL step */
+#li-step { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #f0f0f0; }
+#li-step label { font-size: .8rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px; }
+.li-row { display: flex; gap: 8px; }
+.li-row input { flex: 1; padding: 8px 12px; border: 1.5px solid #e0e0f0; border-radius: 10px;
+                font-size: .85rem; outline: none; }
+.li-row input:focus { border-color: #5b5ef4; }
+.li-fetch-btn { padding: 8px 14px; background: #0a66c2; color: #fff; border: none;
+                border-radius: 10px; font-size: .82rem; font-weight: 600; cursor: pointer;
+                white-space: nowrap; }
+.li-fetch-btn:hover { background: #085396; }
+.li-fetch-btn:disabled { background: #aac4e0; cursor: default; }
+#li-status { font-size: .78rem; margin-top: 6px; min-height: 18px; color: #888; }
+/* 폼 필드 */
+.form-field { margin-bottom: 14px; }
+.form-field label { font-size: .8rem; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
+.form-field input[type=text] { width: 100%; padding: 8px 12px; border: 1.5px solid #e0e0f0;
+                               border-radius: 10px; font-size: .85rem; outline: none; }
+.form-field input:focus { border-color: #5b5ef4; }
+/* 동적 행 섹션 */
+.dyn-section { margin-bottom: 16px; }
+.dyn-title { font-size: .82rem; font-weight: 700; color: #5b5ef4; margin-bottom: 8px; }
+.dyn-row { display: grid; gap: 6px; margin-bottom: 8px; padding: 10px 12px;
+           background: #f8f8fc; border-radius: 10px; position: relative; }
+.dyn-row input { padding: 6px 10px; border: 1.5px solid #e0e0f0; border-radius: 8px;
+                 font-size: .82rem; outline: none; background: #fff; }
+.dyn-row input:focus { border-color: #5b5ef4; }
+.dyn-row input::placeholder { color: #ccc; }
+.dyn-period { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dyn-del { position: absolute; top: 8px; right: 10px; background: none; border: none;
+           color: #ccc; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0; }
+.dyn-del:hover { color: #e55; }
+.dyn-add { font-size: .78rem; color: #5b5ef4; background: none; border: 1.5px dashed #c0c0f0;
+           border-radius: 8px; padding: 6px 14px; cursor: pointer; width: 100%; }
+.dyn-add:hover { background: #f0f0ff; }
+/* 제출 버튼 */
+#modal-submit { width: 100%; padding: 12px; background: #5b5ef4; color: #fff; border: none;
+                border-radius: 12px; font-size: .95rem; font-weight: 700; cursor: pointer;
+                margin-top: 8px; transition: background .15s; }
+#modal-submit:hover { background: #4346d0; }
+#modal-submit:disabled { background: #b0b2f5; cursor: default; }
+#form-msg { text-align: center; font-size: .82rem; margin-top: 10px; min-height: 20px; }
+.member-badge { display: inline-block; font-size: .68rem; background: #e8f4fd; color: #0a66c2;
+                border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+.cur-emp-badge { display: inline-block; font-size: .67rem; background: #fff3e0; color: #e65100;
+                 border-radius: 4px; padding: 1px 6px; margin-left: 5px; vertical-align: middle; }
+.job-tag { font-size: .73rem; color: #5b5ef4; margin-bottom: 5px;
+           background: #f0f0ff; display: inline-block; padding: 2px 8px;
+           border-radius: 6px; margin-bottom: 7px; }
+.hidden { display: none !important; }
+/* ── 회사명 자동완성 ── */
+.ac-wrap { position: relative; }
+.ac-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff;
+           border: 1.5px solid #c8c8f0; border-radius: 10px;
+           box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 500;
+           max-height: 200px; overflow-y: auto; display: none; }
+.ac-list.open { display: block; }
+.ac-item { padding: 7px 12px; font-size: .82rem; cursor: pointer;
+           display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5fb; }
+.ac-item:last-child { border: none; }
+.ac-item:hover, .ac-item.focused { background: #f0f0ff; }
+.ac-logo { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
+.ac-badge { font-size: .63rem; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
+.ac-badge.local  { background: #e8f0ff; color: #5b5ef4; }
+.ac-badge.remote { background: #f4f4f4; color: #aaa; }
+"""
+
+JS = r"""
+const CSV_DATA = __DATA_JSON__;
+let ALL_DATA = [...CSV_DATA];
+
+// ── Supabase 설정 ────────────────────────────────────────────────
+const SB_URL = 'https://vkrbdqzwvflrmgwelmfo.supabase.co';
+const SB_KEY = 'sb_publishable_J7WpyPZp2ttSFQA1_ZZB4g_mViK52fQ';
+const SB_HDR = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+                 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+
+async function sbGet(){
+  const r = await fetch(SB_URL+'/rest/v1/members?select=*&order=created_at.asc', {headers: SB_HDR});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbInsertOrUpdate(data){
+  // name 기준 upsert
+  const r = await fetch(SB_URL+'/rest/v1/members?on_conflict=name', {
+    method: 'POST',
+    headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(data),
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
+function av(n){ return (n||'?')[0]; }
+
+function renderCard(p){
+  const memberBadge  = p._member    ? '<span class="member-badge">자기소개</span>' : '';
+  const curBadge     = p.is_current ? ' <span class="cur-emp-badge">현직</span>' : '';
+  const jobTag       = p.job_type   ? `<div class="job-tag">${p.job_type}</div>` : '';
+
+  const expHtml = (p.experiences||[]).map(e => {
+    const detail = e.text && e.text !== e.company
+      ? e.text.replace(e.company,'').replace(/^[\s\·\-—]+/,'') : '';
+    const parts = (e.company||'').split(/\s*[,，]\s*/).map(s=>s.trim()).filter(Boolean);
+    const compHtml = parts.map(pt=>
+      `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${pt}</span>`
+    ).join('<span class="exp-sep">, </span>');
+    return `<div class="exp-block">
+       <div class="exp-company-line">${compHtml}</div>
+       ${detail ? `<div class="exp-detail">${detail}</div>` : ''}
+     </div>`;
+  }).join('');
+
+  const sections = [
+    {key:'education', label:'학력'},
+    {key:'awards',    label:'활동/수상'},
+    {key:'certs',     label:'자격증'},
+    {key:'etc',       label:'기타'},
+  ];
+  const extraHtml = sections.map(s => {
+    const items = p[s.key]||[];
+    if(!items.length) return '';
+    return `<div class="sec-title">${s.label}</div>`
+      + items.map(i=>`<div class="sec-item">${i}</div>`).join('');
+  }).join('');
+
+  const hasExtra = sections.some(s=>(p[s.key]||[]).length>0);
+  const toggle = hasExtra
+    ? `<span class="sec-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.textContent==='▼ 더 보기'?'▲ 접기':'▼ 더 보기'">▼ 더 보기</span>
+       <div class="extra">${extraHtml}</div>` : '';
+
+  const badge  = p.current ? `<div class="cur-badge">🏢 ${p.current}</div>` : '';
+  const lilink = p.linkedin ? `<a class="linkedin-link" href="${p.linkedin}" target="_blank">LinkedIn →</a>` : '';
+
+  return `<div class="card">
+    <div class="card-top">
+      <div class="avatar">${av(p.name)}</div>
+      <div><div class="cname">${p.name}${memberBadge}${curBadge}</div><div class="dept">${p.dept||''}</div></div>
+    </div>
+    ${jobTag}${badge}${expHtml}${toggle}${lilink}
+  </div>`;
+}
+
+function render(list){
+  const g = document.getElementById('grid');
+  g.innerHTML = list.length
+    ? list.map(renderCard).join('')
+    : '<div class="no-result">검색 결과 없음</div>';
+  document.getElementById('cnt').textContent = `(${list.length}명)`;
+}
+
+function buildFilters(){
+  const years = [...new Set(ALL_DATA.map(p=>p.year).filter(Boolean))].sort();
+  const bar = document.getElementById('fbar');
+  // 기존 년도 버튼 제거 후 재생성
+  bar.querySelectorAll('.fbtn:not([data-filter=""])').forEach(b=>b.remove());
+  years.forEach(y=>{
+    const b = document.createElement('button');
+    b.className='fbtn'; b.dataset.filter=y;
+    b.textContent=(y.length===2?'20'+y:y)+'학번';
+    bar.appendChild(b);
+  });
+  bar.querySelectorAll('.fbtn').forEach(b=>b.addEventListener('click',()=>{
+    bar.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); applyFilter();
+  }));
+}
+
+function applyFilter(){
+  const q = document.getElementById('search').value.toLowerCase();
+  const f = document.querySelector('.fbtn.active')?.dataset.filter||'';
+  render(ALL_DATA.filter(p=>{
+    const mF = !f||p.year===f;
+    const blob = [p.name,p.dept||'',(p.experiences||[]).map(e=>e.text).join(' '),
+                  p.current||'',(p.education||[]).join(' '),(p.awards||[]).join(' '),
+                  (p.certs||[]).join(' '),(p.etc||[]).join(' ')].join(' ').toLowerCase();
+    return mF && (!q||blob.includes(q));
+  }));
+}
+document.getElementById('search').addEventListener('input', applyFilter);
+
+// ── 회원 API 로드 & 머지 ─────────────────────────────────────────
+function memberToCard(m){
+  const exps = (m.experiences||[]).map(e=>({
+    company: e.company||'',
+    text: [e.company, e.role, e.period].filter(Boolean).join(' · ')
+  })).filter(e=>e.company);
+  const current = exps[0]?.company || '';
+  const edLines = (m.education||[]).map(e=>[e.school,e.major,e.period].filter(Boolean).join(' / '));
+  const certLines = (m.certs||[]).map(c=>[c.name,c.issuer,c.date].filter(Boolean).join(' · '));
+  const etcLines = (m.activities||[]).map(a=>[a.name,a.role,a.period].filter(Boolean).join(' · '));
+  return {
+    name: m.name||'',
+    dept: m.dept||'',
+    year: m.year||'',
+    current,
+    experiences: exps,
+    education: edLines,
+    awards: [],
+    certs: certLines,
+    etc: etcLines,
+    linkedin: m.linkedin||'',
+    _member: true,
+  };
+}
+
+async function loadMembers(){
+  try{
+    const members = await sbGet();
+    if(!members.length) return;
+    const cards = members.map(memberToCard);
+    const existing = new Set(CSV_DATA.map(p=>p.name));
+    const newCards = cards.filter(c=>c.name && !existing.has(c.name));
+    ALL_DATA = [...CSV_DATA, ...newCards];
+    buildFilters();
+    applyFilter();
+  }catch(e){ /* Supabase 연결 실패 시 무시 */ }
+}
+
+const tip = document.getElementById('tooltip');
+let ht = null;
+
+function cleanQuery(raw){
+  return decodeURIComponent(raw)
+    .replace(/주식회사|유한회사|\(주\)|\(유\)|㈜|㈔|\(재\)|\(사\)/g,'')
+    .replace(/\([^)]*\)/g,'')
+    .replace(/[\d]{2,4}[.\-\/~]\S*/g,'')
+    .replace(/\d+기\b/g,'')
+    .replace(/수료|졸업|인턴십?|계약직|정규직|파견|아르바이트|사원|주임|대리|과장|팀장|부장/g,'')
+    .replace(/[`'~_]/g,'')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+}
+
+async function searchWiki(base, query){
+  try{
+    const r=await fetch(base+'/api/rest_v1/page/summary/'+encodeURIComponent(query));
+    if(r.ok){const j=await r.json();if(j.type!=='disambiguation'&&j.extract)return j;}
+  }catch(e){}
+  try{
+    const sr=await fetch(base+'/w/api.php?action=opensearch&search='+encodeURIComponent(query)+'&limit=1&format=json&origin=*');
+    if(sr.ok){
+      const [,titles]=await sr.json();
+      if(titles&&titles[0]){
+        const pr=await fetch(base+'/api/rest_v1/page/summary/'+encodeURIComponent(titles[0]));
+        if(pr.ok){const j=await pr.json();if(j.extract)return j;}
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
+async function fetchWiki(rawQ){
+  const full = cleanQuery(rawQ);
+  if(!full) return null;
+  const words = full.split(/\s+/).filter(w=>w.length>1);
+  const candidates = [full];
+  if(words.length>1) candidates.push(words[0]);
+  if(words.length>2) candidates.push(words.slice(0,2).join(' '));
+  for(const base of ['https://ko.wikipedia.org','https://en.wikipedia.org']){
+    for(const q of candidates){
+      const result = await searchWiki(base, q);
+      if(result) return result;
+    }
+  }
+  return null;
+}
+
+function positionTip(target){
+  const rect=target.getBoundingClientRect();
+  let top=rect.bottom+6, left=rect.left;
+  if(left+310>window.innerWidth) left=window.innerWidth-316;
+  if(top+200>window.innerHeight) top=rect.top-210;
+  tip.style.top=top+'px'; tip.style.left=left+'px';
+}
+
+function showTip(target,q){
+  clearTimeout(ht);
+  tip.innerHTML='<div class="tip-body" style="color:#bbb">검색 중…</div>';
+  tip.classList.add('visible');
+  positionTip(target);
+  fetchWiki(q).then(d=>{
+    if(!tip.classList.contains('visible'))return;
+    if(!d){tip.innerHTML='<div class="tip-body" style="color:#bbb">정보 없음</div>';return;}
+    const th=d.thumbnail?.source?`<img class="tip-thumb" src="${d.thumbnail.source}" alt="">`:' ';
+    tip.innerHTML=th+`<div class="tip-title">${d.title}</div>`
+      +`<div class="tip-body">${(d.extract||'').slice(0,220)}…</div>`
+      +'<div class="tip-src">출처: 위키피디아</div>';
+    positionTip(target);
+  });
+}
+function hideTip(){ht=setTimeout(()=>tip.classList.remove('visible'),200);}
+
+function attachTags(){
+  const grid=document.getElementById('grid');
+  grid.addEventListener('mouseover',e=>{
+    const tag=e.target.closest('.exp-company');
+    if(tag){clearTimeout(ht);showTip(tag,tag.dataset.q);}
+  });
+  grid.addEventListener('mouseout',e=>{
+    if(e.target.closest('.exp-company'))hideTip();
+  });
+}
+
+// ── 회원가입 모달 ────────────────────────────────────────────────
+const overlay = document.getElementById('modal-overlay');
+const modal   = document.getElementById('modal');
+
+document.getElementById('join-btn').addEventListener('click', async ()=>{
+  overlay.classList.add('open');
+  document.getElementById('li-status').textContent='';
+  document.getElementById('login-poll-msg').textContent='';
+  await checkSessionStatus();
+});
+document.querySelector('.modal-close').addEventListener('click', closeModal);
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+function closeModal(){
+  overlay.classList.remove('open');
+  document.getElementById('form-msg').textContent='';
+  clearInterval(_loginPollTimer);
+}
+
+// 세션 상태 확인 → 로그인 버튼 텍스트 업데이트
+async function checkSessionStatus(){
+  try{
+    const r = await fetch('/api/session-status');
+    const j = await r.json();
+    if(j.exists){
+      document.getElementById('login-desc').textContent='이미 로그인되어 있습니다. 아래에서 URL을 입력해 자동 불러오기를 사용하세요.';
+      document.getElementById('li-login-btn').textContent='다시 로그인';
+    }
+  }catch(e){}
+}
+
+// LinkedIn 로그인 버튼
+let _loginPollTimer = null;
+document.getElementById('li-login-btn').addEventListener('click', async()=>{
+  const btn = document.getElementById('li-login-btn');
+  btn.disabled=true; btn.textContent='브라우저 여는 중…';
+  document.getElementById('login-poll-msg').textContent='';
+  try{
+    await fetch('/api/login', {method:'POST'});
+  }catch(e){
+    document.getElementById('login-poll-msg').textContent='서버 연결 실패';
+    btn.disabled=false; btn.textContent='LinkedIn 로그인하기';
+    return;
+  }
+  document.getElementById('login-poll-msg').textContent='브라우저가 열렸습니다. LinkedIn에 로그인해주세요…';
+  // 2초마다 상태 폴링
+  _loginPollTimer = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/login/status');
+      const j = await r.json();
+      document.getElementById('login-poll-msg').textContent = j.msg||'';
+      if(j.state==='done'){
+        clearInterval(_loginPollTimer);
+        document.getElementById('login-desc').textContent='로그인 완료! 아래 URL을 입력해 자동 불러오기를 사용하세요.';
+        document.getElementById('login-poll-msg').textContent='';
+        btn.disabled=false; btn.textContent='다시 로그인';
+      } else if(j.state==='error'||j.state==='timeout'){
+        clearInterval(_loginPollTimer);
+        btn.disabled=false; btn.textContent='다시 시도';
+      }
+    }catch(e){}
+  }, 2000);
+});
+
+// LinkedIn 자동 불러오기
+document.getElementById('li-fetch-btn').addEventListener('click', async()=>{
+  const url = document.getElementById('li-url').value.trim();
+  if(!url){ document.getElementById('li-status').textContent='URL을 입력하세요'; return; }
+  const btn = document.getElementById('li-fetch-btn');
+  btn.disabled=true; btn.textContent='불러오는 중…';
+  document.getElementById('li-status').textContent='LinkedIn 스크래핑 중 (브라우저가 열립니다)…';
+  try{
+    const r = await fetch('/api/scrape?url='+encodeURIComponent(url));
+    const d = await r.json();
+    if(d.error){ document.getElementById('li-status').textContent='오류: '+d.error; return; }
+    prefillForm(d);
+    document.getElementById('li-status').textContent='자동 완성됨. 수정 후 제출하세요.';
+  }catch(e){
+    document.getElementById('li-status').textContent='서버 연결 실패. 수동 입력해 주세요.';
+  }finally{
+    btn.disabled=false; btn.textContent='자동 불러오기';
+  }
+});
+
+function prefillForm(d){
+  if(d.name) document.getElementById('f-name').value = d.name;
+  // 경력 파싱 (pipe 구분)
+  if(d.experience){
+    const exps = d.experience.split(' | ').map(s=>s.trim()).filter(Boolean);
+    clearSection('exp-rows');
+    exps.forEach(e=>addRow('exp-rows', {company: e}));
+    if(!exps.length) addRow('exp-rows',{});
+  }
+  // 학력
+  if(d.education){
+    const edus = d.education.split(' | ').map(s=>s.trim()).filter(Boolean);
+    clearSection('edu-rows');
+    edus.forEach(e=>addRow('edu-rows',{school:e}));
+    if(!edus.length) addRow('edu-rows',{});
+  }
+  // 자격증
+  if(d.certs){
+    const certs = d.certs.split(' | ').map(s=>s.trim()).filter(Boolean);
+    clearSection('cert-rows');
+    certs.forEach(c=>addRow('cert-rows',{name:c}));
+    if(!certs.length) addRow('cert-rows',{});
+  }
+}
+
+// ── 회사명 자동완성 ─────────────────────────────────────────────
+function getLocalCompanies(q){
+  const set = new Set();
+  ALL_DATA.forEach(p=>(p.experiences||[]).forEach(e=>{
+    if(e.company && e.company.toLowerCase().includes(q.toLowerCase())) set.add(e.company);
+  }));
+  return [...set].slice(0, 6);
+}
+
+let _clearbitCache = {};
+async function fetchClearbit(q){
+  if(_clearbitCache[q]) return _clearbitCache[q];
+  try{
+    const r = await fetch('https://autocomplete.clearbit.com/v1/companies/suggest?query='+encodeURIComponent(q));
+    if(!r.ok) return [];
+    const items = await r.json();
+    const result = items.slice(0,5).map(c=>({name:c.name, logo:c.logo||''}));
+    _clearbitCache[q] = result;
+    return result;
+  }catch(e){ return []; }
+}
+
+function attachCompanyAutocomplete(input){
+  const wrap = document.createElement('div');
+  wrap.className = 'ac-wrap';
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+
+  const list = document.createElement('div');
+  list.className = 'ac-list';
+  wrap.appendChild(list);
+
+  let _debounce = null;
+  let _focused = -1;
+  let _items = [];
+
+  function renderList(locals, remotes){
+    _items = [];
+    list.innerHTML = '';
+    locals.forEach(name=>{
+      _items.push(name);
+      const el = document.createElement('div');
+      el.className = 'ac-item';
+      el.innerHTML = `<span>${name}</span><span class="ac-badge local">내부</span>`;
+      el.addEventListener('mousedown', e=>{ e.preventDefault(); input.value=name; hideList(); });
+      list.appendChild(el);
+    });
+    remotes.forEach(c=>{
+      if(locals.some(l=>l.toLowerCase()===c.name.toLowerCase())) return;
+      _items.push(c.name);
+      const el = document.createElement('div');
+      el.className = 'ac-item';
+      const logo = c.logo ? `<img class="ac-logo" src="${c.logo}" onerror="this.style.display='none'">` : '';
+      el.innerHTML = `${logo}<span>${c.name}</span><span class="ac-badge remote">글로벌</span>`;
+      el.addEventListener('mousedown', e=>{ e.preventDefault(); input.value=c.name; hideList(); });
+      list.appendChild(el);
+    });
+    _focused = -1;
+    if(_items.length) list.classList.add('open'); else list.classList.remove('open');
+  }
+
+  function hideList(){ list.classList.remove('open'); _focused=-1; }
+
+  function updateFocus(idx){
+    const els = list.querySelectorAll('.ac-item');
+    els.forEach(e=>e.classList.remove('focused'));
+    if(idx>=0 && idx<els.length){ els[idx].classList.add('focused'); _focused=idx; }
+  }
+
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim();
+    if(q.length < 1){ hideList(); return; }
+    const locals = getLocalCompanies(q);
+    renderList(locals, []);
+    clearTimeout(_debounce);
+    _debounce = setTimeout(async()=>{
+      const remotes = await fetchClearbit(q);
+      if(input.value.trim()===q) renderList(locals, remotes);
+    }, 300);
+  });
+
+  input.addEventListener('keydown', e=>{
+    if(!list.classList.contains('open')) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); updateFocus(Math.min(_focused+1,_items.length-1)); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); updateFocus(Math.max(_focused-1,0)); }
+    else if(e.key==='Enter' && _focused>=0){ e.preventDefault(); input.value=_items[_focused]; hideList(); }
+    else if(e.key==='Escape'){ hideList(); }
+  });
+
+  input.addEventListener('blur', ()=>setTimeout(hideList, 150));
+}
+
+// 동적 행 헬퍼
+function clearSection(id){ document.getElementById(id).innerHTML=''; }
+
+function addRow(sectionId, vals={}){
+  const section = document.getElementById(sectionId);
+  const row = document.createElement('div');
+  row.className='dyn-row';
+
+  const configs = {
+    'exp-rows': [
+      {name:'company', placeholder:'회사명'},
+      {name:'role',    placeholder:'직책 / 포지션'},
+      {name:'period',  placeholder:'기간 (예: 2022.03 ~ 현재)', wide:true},
+    ],
+    'edu-rows': [
+      {name:'school',  placeholder:'학교명'},
+      {name:'major',   placeholder:'전공'},
+      {name:'period',  placeholder:'기간 (예: 2018 ~ 2022)', wide:true},
+    ],
+    'act-rows': [
+      {name:'name',    placeholder:'동아리 / 활동명'},
+      {name:'role',    placeholder:'역할'},
+      {name:'period',  placeholder:'기간', wide:true},
+    ],
+    'cert-rows': [
+      {name:'name',    placeholder:'자격증명'},
+      {name:'issuer',  placeholder:'발급기관'},
+      {name:'date',    placeholder:'취득일 (예: 2023.05)', wide:true},
+    ],
+  };
+
+  const fields = configs[sectionId]||[];
+  let html = '';
+  fields.forEach(f=>{
+    const val = (vals[f.name]||'').replace(/"/g,'&quot;');
+    if(f.wide){
+      html += `<input type="text" name="${f.name}" placeholder="${f.placeholder}" value="${val}">`;
+    } else {
+      html += `<input type="text" name="${f.name}" placeholder="${f.placeholder}" value="${val}">`;
+    }
+  });
+  html += '<button type="button" class="dyn-del" title="삭제">✕</button>';
+  row.innerHTML = html;
+  row.querySelector('.dyn-del').addEventListener('click',()=>row.remove());
+  section.appendChild(row);
+  const compInput = row.querySelector('input[name="company"]');
+  if(compInput) attachCompanyAutocomplete(compInput);
+}
+
+// 각 섹션 + 버튼 초기화
+['exp','edu','act','cert'].forEach(key=>{
+  const sId = key+'-rows';
+  addRow(sId, {});
+  document.getElementById('add-'+key).addEventListener('click',()=>addRow(sId,{}));
+});
+
+// 폼 제출
+document.getElementById('modal-submit').addEventListener('click', async()=>{
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ document.getElementById('form-msg').textContent='이름은 필수입니다'; return; }
+
+  function collectRows(sectionId, fields){
+    return Array.from(document.getElementById(sectionId).querySelectorAll('.dyn-row'))
+      .map(row=>{
+        const obj={};
+        fields.forEach(f=>{
+          const inp = row.querySelector(`input[name="${f}"]`);
+          obj[f] = inp ? inp.value.trim() : '';
+        });
+        return obj;
+      }).filter(obj=>Object.values(obj).some(v=>v));
+  }
+
+  const payload = {
+    name,
+    linkedin: document.getElementById('li-url').value.trim(),
+    experiences: collectRows('exp-rows',['company','role','period']),
+    education:   collectRows('edu-rows',['school','major','period']),
+    activities:  collectRows('act-rows',['name','role','period']),
+    certs:       collectRows('cert-rows',['name','issuer','date']),
+  };
+
+  const btn = document.getElementById('modal-submit');
+  btn.disabled=true; btn.textContent='저장 중…';
+  try{
+    await sbInsertOrUpdate(payload);
+    document.getElementById('form-msg').style.color='#5b5ef4';
+    document.getElementById('form-msg').textContent='저장되었습니다! 명단에 추가됩니다.';
+    await loadMembers();
+    setTimeout(closeModal, 1600);
+  }catch(e){
+    document.getElementById('form-msg').style.color='#e55';
+    document.getElementById('form-msg').textContent='오류: '+e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='제출하기';
+  }
+});
+
+attachTags(); buildFilters(); render(ALL_DATA); loadMembers();
+"""
+
+MODAL_HTML = """
+<div id="modal-overlay">
+<div id="modal">
+  <button class="modal-close" title="닫기">✕</button>
+  <h2>회원 정보 등록</h2>
+
+  <!-- 1단계: LinkedIn 로그인 -->
+  <div id="login-step">
+    <div class="login-step-title">1단계 — LinkedIn 로그인</div>
+    <div class="login-step-desc" id="login-desc">로그인하면 프로필 정보를 자동으로 불러올 수 있어요.<br>로그인 완료 후 브라우저가 자동으로 닫힙니다.</div>
+    <button id="li-login-btn">LinkedIn 로그인하기</button>
+    <div id="login-poll-msg"></div>
+  </div>
+
+  <!-- 2단계: LinkedIn URL 입력 -->
+  <div id="li-step">
+    <label>2단계 — LinkedIn 프로필 URL 입력 (선택)</label>
+    <div class="li-row">
+      <input id="li-url" type="text" placeholder="https://www.linkedin.com/in/username">
+      <button id="li-fetch-btn" class="li-fetch-btn">자동 불러오기</button>
+    </div>
+    <div id="li-status"></div>
+  </div>
+
+  <div id="form-body">
+    <!-- 기본 정보 -->
+    <div class="form-field">
+      <label>이름 *</label>
+      <input id="f-name" type="text" placeholder="홍길동">
+    </div>
+
+    <!-- 직장 -->
+    <div class="dyn-section">
+      <div class="dyn-title">직장 경력</div>
+      <div id="exp-rows"></div>
+      <button id="add-exp" class="dyn-add">+ 직장 추가</button>
+    </div>
+
+    <!-- 학력 -->
+    <div class="dyn-section">
+      <div class="dyn-title">학력</div>
+      <div id="edu-rows"></div>
+      <button id="add-edu" class="dyn-add">+ 학력 추가</button>
+    </div>
+
+    <!-- 동아리/활동 -->
+    <div class="dyn-section">
+      <div class="dyn-title">동아리 / 활동</div>
+      <div id="act-rows"></div>
+      <button id="add-act" class="dyn-add">+ 활동 추가</button>
+    </div>
+
+    <!-- 자격증 -->
+    <div class="dyn-section">
+      <div class="dyn-title">자격증</div>
+      <div id="cert-rows"></div>
+      <button id="add-cert" class="dyn-add">+ 자격증 추가</button>
+    </div>
+
+    <button id="modal-submit">제출하기</button>
+    <div id="form-msg"></div>
+  </div>
+</div>
+</div>
+"""
+
+HTML = (
+    '<!DOCTYPE html><html lang="ko"><head>'
+    '<meta charset="UTF-8">'
+    '<meta name="viewport" content="width=device-width,initial-scale=1.0">'
+    '<title>인원 디렉토리</title>'
+    '<style>' + CSS + '</style></head><body>'
+    '<header>'
+    '  <h1>인원 디렉토리 <span class="count" id="cnt"></span></h1>'
+    '  <input id="search" type="text" placeholder="이름·학과·회사·수상 통합 검색…">'
+    '  <button id="join-btn">회원가입</button>'
+    '</header>'
+    '<div class="filter-bar" id="fbar">'
+    '  <button class="fbtn active" data-filter="">전체</button>'
+    '</div>'
+    '<div id="grid"></div>'
+    '<div id="tooltip"></div>'
+    + MODAL_HTML +
+    '<script>' + JS + '</script>'
+    '</body></html>'
+)
+
+
+def main():
+    global CSV_PATH
+    folder = os.path.dirname(os.path.abspath(__file__))
+
+    # 커맨드라인 인자로 파일 지정 가능: python build_site.py 파일명.csv
+    if len(sys.argv) > 1:
+        CSV_PATH = os.path.join(folder, sys.argv[1])
+    elif not os.path.exists(CSV_PATH):
+        cands = sorted([f for f in os.listdir(folder) if f.startswith('notion_') and f.endswith('.csv')])
+        if not cands:
+            print(f'[오류] notion_*.csv 파일을 찾을 수 없습니다.'); sys.exit(1)
+        if len(cands) == 1:
+            CSV_PATH = os.path.join(folder, cands[0])
+        else:
+            print('여러 CSV 파일이 있습니다. 사용할 파일을 선택하세요:')
+            for i, f in enumerate(cands):
+                print(f'  {i+1}. {f}')
+            choice = input('번호 입력: ').strip()
+            CSV_PATH = os.path.join(folder, cands[int(choice)-1])
+
+    print('CSV 파싱 중...')
+    persons = load_persons(CSV_PATH)
+    print(f'  → {len(persons)}명 완료')
+
+    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
+    html = HTML.replace('__DATA_JSON__', json.dumps(persons, ensure_ascii=False))
+    with open(OUT_PATH, 'w', encoding='utf-8') as f:
+        f.write(html)
+    print(f'\n완료: {OUT_PATH}')
+
+
+if __name__ == '__main__':
+    main()

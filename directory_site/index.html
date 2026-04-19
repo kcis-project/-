@@ -1,0 +1,755 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>인원 디렉토리</title><style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+       background: #f4f5fb; color: #1a1a2e; }
+header { background: #fff; border-bottom: 1px solid #e8e8f0; padding: 18px 28px;
+         display: flex; align-items: center; gap: 16px; position: sticky; top: 0;
+         z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+header h1 { font-size: 1.2rem; font-weight: 700; color: #2d2d5e; }
+.count { font-size: .82rem; color: #999; }
+#search { margin-left: auto; padding: 8px 16px; border: 1.5px solid #e0e0f0;
+          border-radius: 20px; font-size: .88rem; width: 240px; outline: none; }
+#search:focus { border-color: #5b5ef4; }
+#join-btn { padding: 8px 18px; background: #5b5ef4; color: #fff; border: none;
+            border-radius: 20px; font-size: .85rem; font-weight: 600; cursor: pointer;
+            transition: background .15s; white-space: nowrap; }
+#join-btn:hover { background: #4346d0; }
+.filter-bar { padding: 12px 28px; display: flex; gap: 8px; flex-wrap: wrap; background: #fff;
+              border-bottom: 1px solid #f0f0f8; }
+.fbtn { padding: 5px 13px; border-radius: 18px; border: 1.5px solid #dde;
+        background: #fff; font-size: .78rem; cursor: pointer; transition: all .15s; }
+.fbtn.active, .fbtn:hover { background: #5b5ef4; color: #fff; border-color: #5b5ef4; }
+#grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px,1fr));
+        gap: 14px; padding: 20px 28px 48px; }
+.card { background: #fff; border-radius: 14px; padding: 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,.05); transition: .2s; }
+.card:hover { box-shadow: 0 5px 20px rgba(91,94,244,.12); transform: translateY(-2px); }
+.card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+          background: linear-gradient(135deg,#5b5ef4,#a78bfa);
+          display: flex; align-items: center; justify-content: center;
+          color: #fff; font-weight: 700; font-size: 1rem; }
+.cname { font-size: .97rem; font-weight: 700; }
+.dept  { font-size: .75rem; color: #999; margin-top: 1px; }
+.cur-badge { display: inline-block; font-size: .78rem; color: #5b5ef4; font-weight: 600;
+             background: #f0f0ff; padding: 3px 9px; border-radius: 7px; margin-bottom: 8px; }
+/* 경력 */
+.exp-block { margin-bottom: 6px; }
+.exp-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; }
+.exp-company { font-size: .82rem; font-weight: 600; color: #222;
+               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline; }
+.exp-company:hover { color: #5b5ef4; }
+.exp-sep { font-size: .82rem; color: #bbb; }
+.exp-detail { font-size: .75rem; color: #777; margin-top: 1px; }
+/* 섹션 토글 */
+.sec-toggle { margin-top: 8px; font-size: .75rem; color: #5b5ef4; cursor: pointer;
+              display: inline-block; }
+.extra { display: none; margin-top: 8px; }
+.extra.open { display: block; }
+.sec-title { font-size: .72rem; font-weight: 700; color: #aaa; text-transform: uppercase;
+             letter-spacing: .05em; margin: 7px 0 3px; }
+.sec-item { font-size: .76rem; color: #555; padding: 2px 0;
+            border-bottom: 1px solid #f8f8f8; }
+.sec-item:last-child { border: none; }
+.linkedin-link { display: inline-block; margin-top: 8px; font-size: .76rem;
+                 color: #0a66c2; text-decoration: none; }
+.linkedin-link:hover { text-decoration: underline; }
+.no-result { grid-column: 1/-1; text-align: center; color: #bbb; padding: 60px 0; }
+/* 툴팁 */
+#tooltip { position: fixed; z-index: 9999; max-width: 300px; background: #fff;
+           border-radius: 12px; box-shadow: 0 8px 28px rgba(0,0,0,.14);
+           padding: 14px; display: none; pointer-events: none; border: 1px solid #eee; }
+#tooltip.visible { display: block; animation: fi .15s ease; }
+@keyframes fi { from { opacity:0; transform:translateY(4px) } to { opacity:1; transform:none } }
+.tip-title { font-size: .9rem; font-weight: 700; margin-bottom: 5px; }
+.tip-body  { font-size: .78rem; color: #555; line-height: 1.5; }
+.tip-thumb { width: 44px; height: 44px; object-fit: contain; float: right;
+             margin-left: 8px; border-radius: 6px; }
+.tip-src   { font-size: .68rem; color: #ccc; margin-top: 6px; }
+/* ── 모달 ── */
+#modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+                 z-index: 200; align-items: center; justify-content: center; }
+#modal-overlay.open { display: flex; }
+#modal { background: #fff; border-radius: 18px; width: 560px; max-width: 96vw;
+         max-height: 90vh; overflow-y: auto; padding: 28px 30px 24px;
+         box-shadow: 0 12px 48px rgba(0,0,0,.22); position: relative; }
+#modal h2 { font-size: 1.1rem; font-weight: 700; color: #2d2d5e; margin-bottom: 20px; }
+.modal-close { position: absolute; top: 18px; right: 20px; background: none; border: none;
+               font-size: 1.3rem; cursor: pointer; color: #999; line-height: 1; }
+.modal-close:hover { color: #333; }
+/* LinkedIn 로그인 단계 */
+#login-step { margin-bottom: 16px; padding: 14px 16px; background: #fffbf0;
+              border: 1.5px solid #ffe8a0; border-radius: 12px; }
+#login-step.hidden { display: none; }
+.login-step-title { font-size: .82rem; font-weight: 700; color: #b8860b; margin-bottom: 6px; }
+.login-step-desc { font-size: .78rem; color: #888; margin-bottom: 10px; line-height: 1.5; }
+#li-login-btn { padding: 8px 18px; background: #0a66c2; color: #fff; border: none;
+                border-radius: 10px; font-size: .83rem; font-weight: 600; cursor: pointer; }
+#li-login-btn:hover { background: #085396; }
+#li-login-btn:disabled { background: #aac4e0; cursor: default; }
+#login-poll-msg { font-size: .78rem; color: #888; margin-top: 8px; min-height: 18px; }
+/* LinkedIn URL step */
+#li-step { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #f0f0f0; }
+#li-step label { font-size: .8rem; font-weight: 600; color: #666; display: block; margin-bottom: 6px; }
+.li-row { display: flex; gap: 8px; }
+.li-row input { flex: 1; padding: 8px 12px; border: 1.5px solid #e0e0f0; border-radius: 10px;
+                font-size: .85rem; outline: none; }
+.li-row input:focus { border-color: #5b5ef4; }
+.li-fetch-btn { padding: 8px 14px; background: #0a66c2; color: #fff; border: none;
+                border-radius: 10px; font-size: .82rem; font-weight: 600; cursor: pointer;
+                white-space: nowrap; }
+.li-fetch-btn:hover { background: #085396; }
+.li-fetch-btn:disabled { background: #aac4e0; cursor: default; }
+#li-status { font-size: .78rem; margin-top: 6px; min-height: 18px; color: #888; }
+/* 폼 필드 */
+.form-field { margin-bottom: 14px; }
+.form-field label { font-size: .8rem; font-weight: 600; color: #555; display: block; margin-bottom: 5px; }
+.form-field input[type=text] { width: 100%; padding: 8px 12px; border: 1.5px solid #e0e0f0;
+                               border-radius: 10px; font-size: .85rem; outline: none; }
+.form-field input:focus { border-color: #5b5ef4; }
+/* 동적 행 섹션 */
+.dyn-section { margin-bottom: 16px; }
+.dyn-title { font-size: .82rem; font-weight: 700; color: #5b5ef4; margin-bottom: 8px; }
+.dyn-row { display: grid; gap: 6px; margin-bottom: 8px; padding: 10px 12px;
+           background: #f8f8fc; border-radius: 10px; position: relative; }
+.dyn-row input { padding: 6px 10px; border: 1.5px solid #e0e0f0; border-radius: 8px;
+                 font-size: .82rem; outline: none; background: #fff; }
+.dyn-row input:focus { border-color: #5b5ef4; }
+.dyn-row input::placeholder { color: #ccc; }
+.dyn-period { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dyn-del { position: absolute; top: 8px; right: 10px; background: none; border: none;
+           color: #ccc; font-size: 1.1rem; cursor: pointer; line-height: 1; padding: 0; }
+.dyn-del:hover { color: #e55; }
+.dyn-add { font-size: .78rem; color: #5b5ef4; background: none; border: 1.5px dashed #c0c0f0;
+           border-radius: 8px; padding: 6px 14px; cursor: pointer; width: 100%; }
+.dyn-add:hover { background: #f0f0ff; }
+/* 제출 버튼 */
+#modal-submit { width: 100%; padding: 12px; background: #5b5ef4; color: #fff; border: none;
+                border-radius: 12px; font-size: .95rem; font-weight: 700; cursor: pointer;
+                margin-top: 8px; transition: background .15s; }
+#modal-submit:hover { background: #4346d0; }
+#modal-submit:disabled { background: #b0b2f5; cursor: default; }
+#form-msg { text-align: center; font-size: .82rem; margin-top: 10px; min-height: 20px; }
+.member-badge { display: inline-block; font-size: .68rem; background: #e8f4fd; color: #0a66c2;
+                border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+.cur-emp-badge { display: inline-block; font-size: .67rem; background: #fff3e0; color: #e65100;
+                 border-radius: 4px; padding: 1px 6px; margin-left: 5px; vertical-align: middle; }
+.job-tag { font-size: .73rem; color: #5b5ef4; margin-bottom: 5px;
+           background: #f0f0ff; display: inline-block; padding: 2px 8px;
+           border-radius: 6px; margin-bottom: 7px; }
+.hidden { display: none !important; }
+/* ── 회사명 자동완성 ── */
+.ac-wrap { position: relative; }
+.ac-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #fff;
+           border: 1.5px solid #c8c8f0; border-radius: 10px;
+           box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 500;
+           max-height: 200px; overflow-y: auto; display: none; }
+.ac-list.open { display: block; }
+.ac-item { padding: 7px 12px; font-size: .82rem; cursor: pointer;
+           display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5fb; }
+.ac-item:last-child { border: none; }
+.ac-item:hover, .ac-item.focused { background: #f0f0ff; }
+.ac-logo { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
+.ac-badge { font-size: .63rem; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
+.ac-badge.local  { background: #e8f0ff; color: #5b5ef4; }
+.ac-badge.remote { background: #f4f4f4; color: #aaa; }
+</style></head><body><header>  <h1>인원 디렉토리 <span class="count" id="cnt"></span></h1>  <input id="search" type="text" placeholder="이름·학과·회사·수상 통합 검색…">  <button id="join-btn">회원가입</button></header><div class="filter-bar" id="fbar">  <button class="fbtn active" data-filter="">전체</button></div><div id="grid"></div><div id="tooltip"></div>
+<div id="modal-overlay">
+<div id="modal">
+  <button class="modal-close" title="닫기">✕</button>
+  <h2>회원 정보 등록</h2>
+
+  <!-- 1단계: LinkedIn 로그인 -->
+  <div id="login-step">
+    <div class="login-step-title">1단계 — LinkedIn 로그인</div>
+    <div class="login-step-desc" id="login-desc">로그인하면 프로필 정보를 자동으로 불러올 수 있어요.<br>로그인 완료 후 브라우저가 자동으로 닫힙니다.</div>
+    <button id="li-login-btn">LinkedIn 로그인하기</button>
+    <div id="login-poll-msg"></div>
+  </div>
+
+  <!-- 2단계: LinkedIn URL 입력 -->
+  <div id="li-step">
+    <label>2단계 — LinkedIn 프로필 URL 입력 (선택)</label>
+    <div class="li-row">
+      <input id="li-url" type="text" placeholder="https://www.linkedin.com/in/username">
+      <button id="li-fetch-btn" class="li-fetch-btn">자동 불러오기</button>
+    </div>
+    <div id="li-status"></div>
+  </div>
+
+  <div id="form-body">
+    <!-- 기본 정보 -->
+    <div class="form-field">
+      <label>이름 *</label>
+      <input id="f-name" type="text" placeholder="홍길동">
+    </div>
+
+    <!-- 직장 -->
+    <div class="dyn-section">
+      <div class="dyn-title">직장 경력</div>
+      <div id="exp-rows"></div>
+      <button id="add-exp" class="dyn-add">+ 직장 추가</button>
+    </div>
+
+    <!-- 학력 -->
+    <div class="dyn-section">
+      <div class="dyn-title">학력</div>
+      <div id="edu-rows"></div>
+      <button id="add-edu" class="dyn-add">+ 학력 추가</button>
+    </div>
+
+    <!-- 동아리/활동 -->
+    <div class="dyn-section">
+      <div class="dyn-title">동아리 / 활동</div>
+      <div id="act-rows"></div>
+      <button id="add-act" class="dyn-add">+ 활동 추가</button>
+    </div>
+
+    <!-- 자격증 -->
+    <div class="dyn-section">
+      <div class="dyn-title">자격증</div>
+      <div id="cert-rows"></div>
+      <button id="add-cert" class="dyn-add">+ 자격증 추가</button>
+    </div>
+
+    <button id="modal-submit">제출하기</button>
+    <div id="form-msg"></div>
+  </div>
+</div>
+</div>
+<script>
+const CSV_DATA = [{"name": "강종연", "dept": "컴퓨터학부 (19)", "year": "19", "job_type": "IT, 개발", "current": "잡코리아", "is_current": true, "experiences": [{"company": "잡코리아", "text": "잡코리아 · 2026.01 ~ 재직중"}, {"company": "오픈서베이", "text": "주식회사 오픈서베이 · 2022.08 ~ 2024.02"}, {"company": "보이스루", "text": "(주) 보이스루 · 2021.08 ~ 2022.08"}], "education": [], "awards": ["<2024 채용 혹한기에서 살아남기> ‘개발자가 성과를 만들어 내는 방법’ 연사", "<경북대학교 동아리 연합 해커톤-GLOW HACKATHON> 개발자 연사 & 해커톤 심사위원", "<2024 GDSC 연합해커톤-눈꽃톤> 해커톤 심사위원", "<GDSC X UMC TECH BUILD IT!> 오프라인 개발 세미나 연사", "<23-24 GDSC Lead OnBoarding> Tips from GDSC 22-23 우수 리드 연사", "<Google I/O Extended 2023 Incheon> Passkeys: 더 간단하고 안전한 로그인 연사", "<2023 프론트엔드 트렌드 따라잡기> TypeScript v5로 타입서커스 연사", "<2022 GDGXGDSC DevFest Merry Careermas (메리 커리어마스)> 리액트 코드잼 연사"], "certs": [], "etc": ["<Devfest 2022 GDG Daegu : Hackathon> 라이트닝토크 연사", "2023 Dev 토크콘서트 주최 & 진행자", "경북대학교 디자인학과 2022년도 졸업전시 웹페이지 ‘126’ 개발", "컴퓨터학부 2020 드림앤 디자인 장학생", "컴퓨터학부 OpenLab 랜딩페이지 최초 개발", "컴퓨터학부 CSE 홍보단 3기, 4기 웹마스터", "IT단과대학 학술동아리 ‘해달’ IT 교육운영진 (2020년 1&2학기)", "IT단과대학 댄스동아리 ‘WAP’ 2기 부회장", "19년도 1학년 과대표", "대구광역시 북구 청년정책위원회 최연소 위원", "제 3기 KISA(한국인터넷진흥원) 혁신 참여단", "KT 모바일 퓨처리스트 18기", "대구 스마트시티 시민 홍보단 2기", "제 1기 K-청년창업멘토단 멘토", "2020 대구광역시 청년정책네트워크 분과위원", "국가교육회의 청년특별회의 청년특별위원회 청년청소년 자문단원", "커넥트 공식 Q&A 서포터즈", "2020 대구 청년 스타트업과 함께하는 <마케팅 실무 서포터즈 1기>", "Do it! HTML + CSS + 자바스크립트 웹 표준의 정석 서평단", "포스트 코로나 AI 챌린지 최우수상-NIA한국정보화진흥원장상 (2020.05.22) - 과학기술정보통신부, 한국정보화진흥원, kt 주최", "대경권 공공데이터 활용경진대회 우수상-NIA한국지능정보사회진흥원장상(2020.12.28) - 지역선도대학육성사업, 한국지능정보사회진흥원 주최", "빅데이터 융합 아이디어 경진대회 입상(2021.02.22) - 경북대학교 대학원 데이터융합컴퓨팅학과 주최", "대구광역시 청년정책네트워크 최종공유회 우수상(2020.11.06) - 대구광역시 청년정책네트워크 주최", "제 2회 수성청년 바라는대로 포럼 우수상(2020.09.24) - 대구광역시 수성구청 주최", "제 2회 코드페어 스타트업 오디션 장려상(2020.11.27) - 경북대학교 IT대학 주최"], "linkedin": ""}, {"name": "강지혜", "dept": "영어영문학과(16) / 컴학 심화컴퓨터전공(복수전공)", "year": "16", "job_type": "IT", "current": "오누이(설탭)", "is_current": true, "experiences": [{"company": "오누이(설탭)", "text": "(주)오누이(설탭) · 2023.03 ~ 2023.08"}, {"company": "중고나라", "text": "(주)중고나라 · 2023.09 ~ 재직중"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "곽재진", "dept": "경영학부17(편입15)", "year": "", "job_type": "IT, 광고, 마케팅, 관광, 전략, 컨설팅", "current": "익스피디아 그룹", "is_current": true, "experiences": [{"company": "익스피디아 그룹", "text": "익스피디아 그룹 | Associate Market Manager · 2025.06.23 ~"}, {"company": "크리테오 코리아", "text": "크리테오 코리아 | Account Coordinator · 2021.07 ~ 2022.03"}, {"company": "크리테오 코리아", "text": "크리테오 코리아 | Account Strategist · 2022.04 ~"}, {"company": "Lucy Turpin Communications (독일 뮌헨 소재 PR/", "text": "Lucy Turpin Communications (독일 뮌헨 소재 PR/Marketing agency) | 단기 인턴 · 16.07~16.08"}], "education": [], "awards": ["1. KCI 등재 논문 제1저자 (국내 전기차 수요 분석 및 예측)", "2. 경영학부 학부연구생_김성수 교수님 (19.07~20.06)", "3. 평창동계올림픽/패럴림픽 통역 지원 (18.01~18.03)", "4. 뮌헨대학교(LMU) Digital Media Non-degree program (16.06~16.07)"], "certs": ["Microsoft Office Specialist Master", "GAIQ", "OPIC AL", "TOEIC 990", "970"], "etc": [], "linkedin": ""}, {"name": "권순성", "dept": "경제통상학부(18)", "year": "18", "job_type": "제조업", "current": "현대자동차 국내생산담당 울산인사실", "is_current": true, "experiences": [{"company": "현대자동차 국내생산담당 울산인사실", "text": "현대자동차 국내생산담당 울산인사실 · '24.12 ~ 재직중"}, {"company": "CJ제일제당 식품사업부문 한국생산본부 논산공장 사업장인사", "text": "CJ제일제당 식품사업부문 한국생산본부 논산공장 사업장인사 · ‘24.01 ~ ’24.11"}, {"company": "LG이노텍 구미사업장 구미노경팀", "text": "LG이노텍 구미사업장 구미노경팀 · ‘22.03 ~ ‘22.12"}], "education": [], "awards": ["현장실습 : 한국도로공사(21S), LG이노텍(22-1)", "독일 하일브론응용과학대학 경영 교환학생(23-1)", "동아리 : RCY, 해달 프로그래밍", "자율전공부 학생회, KNU교육패널, 경제통상학부 학생옴부즈맨", "크레텍 최영수 장학기금 장학생", "한국산업인력공단 ESG지원사업 청년공감평가단", "한국지역난방공사 꿈드림기자단 10기", "주택도시보증공사 HUG프렌즈 5기"], "certs": ["HRM전문가", "ADsP", "컴활 2급", "토익스피킹 IH", "유통관리사 2급"], "etc": ["근로복지공단 홍보 모니터단 4기", "한국교육방송공사 EBS 교육멘토링 멘토"], "linkedin": ""}, {"name": "권현정", "dept": "경영학부(19)", "year": "19", "job_type": "IT, 금융", "current": "한국산업은행 IT직렬", "is_current": true, "experiences": [{"company": "한국산업은행 IT직렬", "text": "한국산업은행 IT직렬 · 24.01~"}], "education": [], "awards": ["한국산업은행 IT직렬 (24.01~)", "삼성 청년 SW아카데미(SSAFY) 10기", "네이버 커넥트재단 부스트캠프 AI Tech 4기 NLP 트랙", "행복나눔재단 SK 대학생 자원봉사단 SUNNY 부동산 재무교육", "한이음 ICT멘토링 챗봇 프로젝트", "2023 대구로 데이터 연계 해커톤대회 우수상", "프롭테크 인 캠퍼스 SNU 대상", "전국 창의문제 해결능력 경진대회 특별상"], "certs": ["정보처리기사"], "etc": [], "linkedin": ""}, {"name": "김가림", "dept": "인문사회 자율전공 / 전자공학과(23학번)", "year": "", "job_type": "IT", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["4대보험", "enp어학원 영어 강사 2023년 3월~현재", "교내활동", "KAFC 2023 2학기~2024 1학기", "Slang 임원 및 회장 2024~2025 1학기", "it대 학술 동아리 해달 2024 1학기", "해달 개최 아이디어톤&해커톤 2024 11월", "아두이노 기반 블루투스 자동차 만들기 프로젝트 2025년 1월~2월"], "certs": ["토익", "토플"], "etc": ["반도체특성화 트랙 II 2025~현재", "학부연구생(지콴웨이 교수님) 2025~현재", "대외활동", "신천초등학교 ai 강연 조교 2024 11월", "AI디지털마케팅부트캠프 우수상 2025 1월", "kt디지털인재장학생 2025~현재"], "linkedin": ""}, {"name": "김남규", "dept": "고고인류학과(17)", "year": "17", "job_type": "금융", "current": "미래에셋증권 대구WM 교육생", "is_current": true, "experiences": [{"company": "미래에셋증권 대구WM 교육생", "text": "미래에셋증권 대구WM 교육생 · 21.03~21.09"}, {"company": "토스증권 Assistant", "text": "토스증권 Assistant · 22.01~22.11"}, {"company": "한국투자증권(대구PB센터)", "text": "한국투자증권(대구PB센터) · 22.12~재직 중"}], "education": [], "awards": ["[투자 모임 MIRO] (20.08~현재)", "토스증권 WICS 보완 산업 분류 개편 프로젝트 참여", "토스증권 데일리 리포트 발간 어시스트", "토스증권 프리미엄 컨텐츠 구축 타사 서비스 리서치", "토스증권 사용자 검색 데이터 기반 태그검색 서비스 구축 프로젝트 참여", "[IR]", "파마리서치 IR담당자 미팅 참여(토스증권)", "포스코인터내셔설 IR담당자 미팅 참여(토스증권)"], "certs": ["투자자산운용사", "증권투자권유자문인력", "펀드투자권유자문인력", "파생상품투자권유자문인력", "증권투자권유대행인", "펀드투자권유대행인"], "etc": ["알서포트 IR 담당자 미팅 참여 (토스증권)"], "linkedin": ""}, {"name": "김도연", "dept": "경영학부(19)", "year": "19", "job_type": "금융", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["T.O.P(2020-2021) 31기 / MIRO(2021) / 해달(2022)", "예비창업패키지(2021)", "CJ 올리브네트웍스 데이터사이언스 인턴(2022)", "버디(2022)", "전공알림단(2020,2021,2023)", "교사대생 대학생 튜터링(2022)", "롯데장학재단 취업준비생 장학금 5기"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김문섭", "dept": "경제통상학부(18)", "year": "18", "job_type": "", "current": "농업협동조합자산관리회사", "is_current": true, "experiences": [{"company": "농업협동조합자산관리회사", "text": "농업협동조합자산관리회사 · 2025.01.01 ~ 재직중"}, {"company": "농협은행 여신팀", "text": "농협은행 여신팀 · 2024.03.04 ~ 2024.12.31"}, {"company": "주택도시보증공사 금융사업본부 청년인턴", "text": "주택도시보증공사 금융사업본부 청년인턴 · 2022 하반기"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "김미정", "dept": "경영학부(17) / 컴퓨터학부 부전공", "year": "17", "job_type": "IT", "current": "네이버 FOREST CIC 마케팅&CRM플랫폼기획 [네이버 쇼핑]", "is_current": true, "experiences": [{"company": "네이버 FOREST CIC 마케팅&CRM플랫폼기획 [네이버 쇼핑]", "text": "네이버 FOREST CIC 마케팅&CRM플랫폼기획 [네이버 쇼핑] · 2022.04 ~ 재직중"}], "education": [], "awards": ["#2020", "멋쟁이 사자처럼 8기 활동", "창업아이템 경진대회 대상", "sPETcial(반려동물 분야 관련 서비스 어플)", "롯데그룹 해커톤 대상", "월간과자(롯데제과 월간과자 서비스 활성화 위한 웹개발)", "대경권 대학 연합 해커톤 장려상", "대구 스마트시티 시민홍보단 2기 최우수 활동팀"], "certs": [], "etc": ["#2021", "현장실습 계절제 - 스타트업 (서비스기획/마케팅) 참가", "한양대 창업 동아리 LUCID - 프로젝트 기획 및 마케팅 담당", "#2022", "페이스북 유니버시티 - 디지털 마케팅 트랙 수강"], "linkedin": ""}, {"name": "김민재", "dept": "경제통상학부(21)", "year": "21", "job_type": "", "current": "한국은행 통계조사보조원 (대구경북본부, 제주본부)", "is_current": false, "experiences": [{"company": "한국은행 통계조사보조원 (대구경북본부, 제주본부)", "text": "한국은행 통계조사보조원 (대구경북본부, 제주본부) | 신용보증기금 이행전담팀 인턴(대구경북본부); POSCO ASIA(포스코 홍콩 법인) 인턴; 국회예산정책처 기획관리실 RA"}], "education": [], "awards": ["BSI, CSI 지수 조사 보조", "보증채무이행, 대위변제", "해외 법인 FX 수요 조사, 해외 법인 Cash Management"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김부미", "dept": "조경학과(12) / 영문학과 부전공", "year": "12", "job_type": "ESG, 기후", "current": "한국수자원공사(조경직)(", "is_current": true, "experiences": [{"company": "한국수자원공사(조경직)(", "text": "한국수자원공사(조경직)(2021~) | 물환경처 / 부산에코델타시티사업단"}, {"company": "We Love the city, Rotterdam, 인턴(2020)", "text": "We Love the city, Rotterdam, 인턴(2020)"}, {"company": "Engoo 영어튜터", "text": "Engoo 영어튜터 · 2019-2020"}], "education": [], "awards": ["터키 앙카라 대학교 교환학생", "Ecocity World Summit 2019", "(세션발표) On Participatory Nature: An Open-Source Guide for the Activation of Ecology in Drosscape"], "certs": ["네덜란드 TU Delft 석사(MSc) 졸업(BK 건축대학원 조경학과)", "(전공관련) 조경기사 / 자연생태복원기사", "(외국어) JLPT N2 / DELF B1"], "etc": [], "linkedin": ""}, {"name": "김비호", "dept": "경제통상학부(17)", "year": "17", "job_type": "물류", "current": "한국마사회 경마지원직(", "is_current": true, "experiences": [{"company": "한국마사회 경마지원직(", "text": "한국마사회 경마지원직( 23.04) · `22.04 ~"}, {"company": "포스코 스틸브릿지 11기 인턴", "text": "포스코 스틸브릿지 11기 인턴 · `23.01 ~ `23.02"}, {"company": "포스코 구매투자본부 설비자재구매실 구매직무 재직중", "text": "포스코 구매투자본부 설비자재구매실 구매직무 재직중 · `23.07 ~"}, {"company": "무역영어 1급", "text": "무역영어 1급"}, {"company": "물류관리사", "text": "물류관리사"}], "education": [], "awards": [], "certs": ["컴활 1급", "한국사 1급", "오픽 IH(영어)", "유통관리사 2급"], "etc": [], "linkedin": ""}, {"name": "김선영", "dept": "행정학부 공공정책전공(18)", "year": "18", "job_type": "", "current": "지방자치단체 총무계 계약직", "is_current": true, "experiences": [{"company": "지방자치단체 총무계 계약직", "text": "지방자치단체 총무계 계약직 · ’18.01. ~ ‘18.02."}, {"company": "지방자치단체 재무과 계약직", "text": "지방자치단체 재무과 계약직 · ’18.07. ~ ‘18.08."}, {"company": "빅데이터 스타트업 플라밍고 Data Assistant", "text": "빅데이터 스타트업 (주)플라밍고 Data Assistant · ’18.11. ~ ‘18.12."}, {"company": "지방자치단체 산업계", "text": "지방자치단체 산업계 · ’20.04. ~ ‘20.12."}, {"company": "영어입시학원 강사", "text": "영어입시학원 강사 · ’22.05. ~ ‘24.06."}, {"company": "서민금융진흥원 / 대구경북지역본부 / 사원", "text": "서민금융진흥원 / 대구경북지역본부 / 사원 · ’24.07. ~ ‘24.10."}, {"company": "NH농협은행 / WM사업부 / 펀드마케팅팀 / 주임", "text": "NH농협은행 / WM사업부 / 펀드마케팅팀 / 주임 · ’24.11. ~ ‘25.03."}, {"company": "국회 의원실 비서관", "text": "국회 의원실 비서관 · ’25.03. ~"}], "education": [], "awards": ["‘22 국가직 7급 일반행정 1차 합", "지방직 7급 일반행정 탈"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김성태", "dept": "심리학과(16)", "year": "16", "job_type": "금융, 부동산", "current": "신용보증기금", "is_current": true, "experiences": [{"company": "신용보증기금", "text": "신용보증기금 · 2022.09-2022.12"}, {"company": "부동산원 05", "text": "부동산원 05 · 2023.03-"}, {"company": "부동산원", "text": "부동산원 · 2023.11-"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "김수연", "dept": "경영학부 (22)", "year": "22", "job_type": "마케팅", "current": "2022 대구시 달서구청 대학생 행정인턴", "is_current": true, "experiences": [{"company": "2022 대구시 달서구청 대학생 행정인턴", "text": "2022 대구시 달서구청 대학생 행정인턴 | 2024 뚜누 콘텐츠마케팅 현장실습"}], "education": [], "awards": ["[대내활동]", "2022 경북대학교 자율전공부 학생회", "경상대학 지하동아리 문화산업연구회 34기", "2023 금복주 제로투 서포터즈 2기", "2023 에코맘코리아 글로벌에코리더 2기", "2023 KT&G 소소디 전통시장 마케팅 3기", "2023 국립대학육성사업 홍보대사 10기", "2024 DGB 제25기 iM뱅크 대학생 홍보대사 15기"], "certs": [], "etc": ["국립대학 육성사업 영상 공모전 애교상"], "linkedin": ""}, {"name": "김승기", "dept": "경영학부(20)", "year": "20", "job_type": "데이터", "current": "LG이노텍 구미사업장 구미노경팀", "is_current": true, "experiences": [{"company": "LG이노텍 구미사업장 구미노경팀", "text": "LG이노텍 구미사업장 구미노경팀 · 24.08 ~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "김영은", "dept": "경영학부 20", "year": "", "job_type": "금융", "current": "DGB대구은행 본점PB센터 장기인턴", "is_current": true, "experiences": [{"company": "DGB대구은행 본점PB센터 장기인턴", "text": "DGB대구은행 본점PB센터 장기인턴 · 23.01-23.07"}, {"company": "한국은행 금융시장국 청년인턴", "text": "한국은행 금융시장국 청년인턴 · 24.06-24.12"}, {"company": "한국산업은행", "text": "한국산업은행 · 25.07- 재직중"}], "education": [], "awards": ["T.O.P. 33기(’21)", "DART 11기(’22-)", "[활동]", "상상유니브 소소디 1기(’21)", "한국장학재단 국민소통정책발표회 우수팀 PT(’21)", "DGB대구은행 단기 현장실습-제2본점 영업부(’21)", "교환학생(Bridgewater State Univ)(’22)", "미래에셋박현주재단 해외교환장학 26기(’22)"], "certs": ["토플 84", "토익 945", "한국사능력검정시험 2급", "신용분석사"], "etc": ["크레텍 최영수 장학생(’22)"], "linkedin": ""}, {"name": "김영채", "dept": "영어영문학과 (15) / 컴퓨터학부 심화컴퓨터학과 복수전공", "year": "15", "job_type": "IT, 개발", "current": "HYBE Entertainment Weverse Company iOS 개", "is_current": true, "experiences": [{"company": "HYBE Entertainment Weverse Company iOS 개", "text": "HYBE Entertainment Weverse Company iOS 개발 · 2022.09~"}, {"company": "대구컨벤션뷰로 MICE 사업 인턴", "text": "대구컨벤션뷰로 MICE 사업 인턴 · 2019.09 ~ 2019.12"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "김예진", "dept": "경영학부 19학번,", "year": "", "job_type": "광고, 마케팅, 관광", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["ICN 경영대학 복수학위자(23.09-24.6)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김인재", "dept": "경영학부(18)", "year": "18", "job_type": "", "current": "딜로이트 안진회계법인 감사본부 FS2 Consultant", "is_current": true, "experiences": [{"company": "딜로이트 안진회계법인 감사본부 FS2 Consultant", "text": "딜로이트 안진회계법인 감사본부 FS2 Consultant · 2024.03 ~ 현재"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "김재홍", "dept": "컴퓨터학부(20) / 자율전공부", "year": "20", "job_type": "IT", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["[학생활동]", "자율전공부 학생회장(2020)", "경북대 재정위원회 학생대표위원(2021)", "WFK ICT해외봉사단 인도네시아(2022)", "Microsoft Learn Student Ambassador(2023)", "창업동아리 스토코디(2023)", "싱가포르 스타트업 투어 발표(2023)", "대구광역시 도심캠퍼스 북성문화마을리빙랩 기획/운영(2024)"], "certs": [], "etc": ["[연구활동]", "Video Intelligence Lab in KNU(2023)", "Web Security Lab in KNU(2025~)"], "linkedin": ""}, {"name": "김주은", "dept": "컴퓨터학부(18)", "year": "18", "job_type": "IT, 개발", "current": "롯데정보통신", "is_current": true, "experiences": [{"company": "롯데정보통신", "text": "롯데정보통신 · 2023.05~"}], "education": [], "awards": ["SSAFY 삼성청년SW아카데미 7기 수료"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김준민", "dept": "수학과(14) / 빅데이터 연계전공", "year": "14", "job_type": "", "current": "Hopae (Head of Trust & DevOps Lead)", "is_current": true, "experiences": [{"company": "Hopae (Head of Trust & DevOps Lead)", "text": "Hopae (Head of Trust & DevOps Lead) · 2023년 5월 ~ 현재"}, {"company": "삼쩜삼 (Cloud Engineer)", "text": "삼쩜삼 (Cloud Engineer) · 2022년 1월 ~ 2023년 5월"}, {"company": "Blockchain Labs (Principal Cloud Archite", "text": "Blockchain Labs (Principal Cloud Architect & DevOps Engineer) · 2021년 4월 ~ 2021년 12월"}, {"company": "LG CNS (Cloud DevOps & Security Engineer", "text": "LG CNS (Cloud DevOps & Security Engineer) · 2019년 1월 ~ 2021년 3월"}], "education": [], "awards": [], "certs": ["내용: 솔루션 아키텍처", "정보보안 및 DevOps 리드 역할 수행"], "etc": [], "linkedin": ""}, {"name": "김준우", "dept": "경영학부 (22학번)", "year": "", "job_type": "마케팅, 데이터", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["1. 경북대학교 자율전공부 학생회장 (2022.04 ~ 2023.04)", "2. 현대자동차 대학생 교육봉사단 (2023.03 ~ 2024.01)", "3. LG 생활건강 글로벌 에코리더 YOUTH (2023.04~2023.11)", "4. KT&G 전통시장 살리기 대외활동 소소디3기 (2023.06~2023.09)", "5. KNU Notice 계정 운영 (2023 ~)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김지수", "dept": "경영학부(20) 통계학과 복전 / Malaya summar program 수료 (2020)", "year": "20", "job_type": "부동산, 데이터", "current": "근로복지공단 일경험인턴", "is_current": false, "experiences": [{"company": "근로복지공단 일경험인턴", "text": "근로복지공단 일경험인턴 · 25.01~25.02"}, {"company": "한국토지주택공사 체험형인턴", "text": "한국토지주택공사 체험형인턴 · 25.03~25.10"}, {"company": "한국표준협회 인공지능자격", "text": "한국표준협회 인공지능자격"}, {"company": "전산회계 1급", "text": "전산회계 1급"}], "education": [], "awards": ["이주민 아동 교육 지원 및 운영 보조 (2020)", "한국특허전략개발원 표준특허교육 수료 (2020)", "nipa AI 과정 수료 (2020, 2021)", "데이터 드리븐 사회혁신을 위한 액션러닝 프로젝트 참여 (2021)", "대구창의재생도시교육 3기 수료 (2021)", "SK 네트웍스 블록체인 비즈니스기획/ 사업관리 직무인증 (2021)", "미담장학회 기획팀원(2021), 기획팀장(2022)", "페이스북유니버시티 1기 / 에너지혁신대학동계특강 수료 (2022)"], "certs": ["감정평가사 1차 합 / 최종 불합 (24)", "투자자산운용사", "컴활/워드/한자/한국사1급", "재경관리사"], "etc": ["KNU 교육패널 / 교사대생 대학생 튜터링 (2022-23)", "천주교구 해외이주민정착지원사업 운영 (2022-23)"], "linkedin": ""}, {"name": "김지우", "dept": "식품자원경제학과(21)", "year": "21", "job_type": "", "current": "", "is_current": false, "experiences": [], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "김지현", "dept": "경영학부(17)", "year": "17", "job_type": "마케팅", "current": "대구신용보증재단 범어동지점 인턴 (체험형)", "is_current": true, "experiences": [{"company": "대구신용보증재단 범어동지점 인턴 (체험형)", "text": "대구신용보증재단 범어동지점 인턴 (체험형)"}, {"company": "( 03 ~  12)", "text": "(2021. 03 ~ 2021. 12)"}, {"company": "매드업 퍼포먼스마케터 AE", "text": "매드업 퍼포먼스마케터 AE"}, {"company": "( 09 ~ 재직중)", "text": "(2023. 09 ~ 재직중)"}], "education": [], "awards": ["경영경제학회 ‘T.O.P’ 28기", "그로스쿨 ‘마케팅 러너’ 4기"], "certs": [], "etc": [], "linkedin": ""}, {"name": "김태원", "dept": "컴퓨터학부(17)", "year": "17", "job_type": "IT, 개발", "current": "LG전자", "is_current": true, "experiences": [{"company": "LG전자", "text": "LG전자 · 2022.07~2022.08"}, {"company": "카카오", "text": "카카오 · 2022.12~"}], "education": [], "awards": ["2018 ~ 2021", "교내 중앙 동아리 앱동 활동", "파이썬 멘토링", "동아리 내부 대회 참여", "2018", "창업 아이디어 공모전 참여", "SKT NUGU 아이디어 공모전 참여", "2020"], "certs": [], "etc": ["NH투자증권 데이터 분석 대회 본선 진출", "화웨이 ICT 챌린지 본선 진출", "2021", "멋쟁이 사자처럼 9기 활동", "KNU SW해커톤 장려상", "창업경진대회 대상", "대경권 프로그래밍 경진대회 장려장", "대경권 공공데이터 활용 경진대회 우수상"], "linkedin": ""}, {"name": "김현우", "dept": "컴퓨터학부(15)", "year": "15", "job_type": "IT, 개발", "current": "카카오엔터프라이즈", "is_current": true, "experiences": [{"company": "카카오엔터프라이즈", "text": "카카오엔터프라이즈 · 2020.06-2023.08"}, {"company": "토스뱅크", "text": "토스뱅크 · 2023.10-"}], "education": [], "awards": ["<대외활동>", "LG글로벌챌린저 25기", "삼성드림클래스 영어 주중강사 및 방학강사", "NIA 월드프렌즈 ICT 봉사단 몽골 파견", "경북대학교 컴퓨터학부 Neuromorphic Computing Lab 학부연구생", "<공모전>", "2019 KNU 코드페어 우수상", "2018 GIF 메이커톤 최우수상"], "certs": [], "etc": ["2018 SW 융합 해커톤 우수상", "2018 부산 ICT 해커톤 우수상"], "linkedin": ""}, {"name": "김현지", "dept": "컴퓨터학부(20) / [학부연구생]", "year": "20", "job_type": "IT", "current": "한화시스템 방산SW 연구원", "is_current": true, "experiences": [{"company": "한화시스템 방산SW 연구원", "text": "한화시스템 방산SW 연구원 · 24.07~"}], "education": [], "awards": ["CES 대학원 동계 학부생 연구프로그램(21)", "컴퓨터학부 영상처리 연구실 학부연구생(22)", "CES 대학원 하계 학부생 연구프로그램(22)", "DSAC M1. Data Programming 교육(20)", "AI with Python 교육(21)", "ADD 현장실습(22)", "코드라이언 멋쟁이 사자처럼 운영진 교육(22)", "대구x청년소셜리빙랩 교육(22)"], "certs": ["ADsP"], "etc": ["LG Aimers(23)", "제 2회 KNU 코드페어 장려상(20)", "KNU 창업 아이디어 경진대회 최우수상(21)", "KNU SW 해커톤 장려상(21)", "동북권 ICT 잡JOB아 페스타 해커톤 장려상(21)", "KAIS 추계학술대회 전국 대학생 ICT프로젝트 경진대회 장려상(21)", "2021 대학생 AI 프로그래밍 경진대회 최우수상(21)", "KNU 창업아이템 경진대회 대상(22)", "MSW Supporters Hackathon 2022 대상(22)", "멋쟁이 사자처럼 아이디어 해커톤 경진대회 장려상(22)", "2022 대구를 빛내는 SW해커톤 최우수상(22)", "2022 코드포대구 해커톤 우수상(22)", "2022 지역선도대학 육성사업 - 대경권 대학생 AI프로그래밍 경진대회 우수상(22)", "제 3회 밀리테크 챌린지 우수상(22)", "경북대학교 IT대학 컴퓨터학부 창업 성과 경진대회 최우수상(22)", "2022 캡스톤디자인 해외네트워크 프로그램 CES 2023 해커톤 대회 장려상(23)", "2023 SW테스트 경진대회 대경권 대표팀 참여(23)", "스마트해상물류 경진대회 장려상(23)", "WCRC 데이터분석부문 한국로봇교육콘텐츠협회장상(23)", "AI/SW 교육 실무 프로젝트 성과발표 동상(23)", "한국장학재단 하계 대학생 재능기부 캠프(20)", "DSAC Programming 자격 취득(20)", "대구 공익데이터실험실 1기 활동가(21)", "K-ICT 창업멘토링 18기 전담멘티(21)", "요즘것들 토이프로젝트 웹개발 프론트엔드 담당(21)", "한이음 ICT 스마트팜 프로젝트(21)", "스마트해상물류 ICT 프로젝트(22)", "GDG Campus Korea Summer Hackathon 운영(오거나이저 후보)(22)", "MSW Supporters Hackathon PGL(22)", "2022 코드포대구 “무지한 상태로 반려동물 양육” 분과 펠로우(22)", "스마트해상물류 ICT 프로젝트(23)", "Remote Internship 4기 + 파트장(23)", "제대로리빙랩 도시문제발굴단 “교통흐름개선“ 분과 퍼실리테이터(23)", "사용성평가 리빙랩 시민평가단 - 오토아이티(주)(23)"], "linkedin": ""}, {"name": "김형래", "dept": "컴퓨터학부(20)", "year": "20", "job_type": "IT, 개발", "current": "(공동창업) 베이직파이브 풀스택 엔지니어 (20", "is_current": false, "experiences": [{"company": "(공동창업) 베이직파이브 풀스택 엔지니어 (20", "text": "(공동창업) 베이직파이브 풀스택 엔지니어 (20 · 24.02. ~"}, {"company": "디자인: Figma, Illustrator, Photoshop", "text": "디자인: Figma, Illustrator, Photoshop"}, {"company": "개발: Flutter, Spring, React", "text": "개발: Flutter, Spring, React"}], "education": [], "awards": ["산학협력프로젝트경진대회 우수상(25-1학기)", "경북대학교 영어영문학과 코딩튜터(24-25)", "경북대학교 디지털인문공학연구소 객원연구원(24.10-26.08)", "한국장학재단 다문화 탈북학생 멘토링(2022)", "네이버 커넥트재단 소프트웨어야놀자 멘토링(2023)", "SAP Design Thinking Workshop(2023)", "소프트웨어 마에스트로 14기(2023) 우수 프로젝트 선정 및 상위 6% 달성. 시드팁스(프라이머) 선정.", "Canegie Mellon University(실리콘밸리) Technology Leadership, management and Inovation Program 이수(2024)"], "certs": ["TOEIC 930"], "etc": ["디지털인문학 겨울학교 해커톤 조교 (2025)", "디지털인문학길잡이 교과서 코딩 검수. 경북대학교 출판부(2025)", "플러터 엔지니어링 베타리더. 한빛미디어(2025)", "대학생 미팅 어플리케이션 엔대생. 앱 개발 및 UI/UX 디자인. (2024)", "[기술]"], "linkedin": ""}, {"name": "남채은", "dept": "경제통상학부(17)", "year": "17", "job_type": "금융, 보험", "current": "한국자산관리공사 조세채권관리처 체험형 인턴 2. 신한금융플러스 본사 GA", "is_current": true, "experiences": [{"company": "한국자산관리공사 조세채권관리처 체험형 인턴 2. 신한금융플러스 본사 GA", "text": "한국자산관리공사 조세채권관리처 체험형 인턴 2. 신한금융플러스 본사 GA 영업기획팀 · 21.08. - 21.11."}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "류원정", "dept": "철학과 (18) / 경제통상학부(복수)", "year": "18", "job_type": "", "current": "구다이글로벌 E-Commerce MD 정규직 :", "is_current": true, "experiences": [{"company": "구다이글로벌 E-Commerce MD 정규직 :", "text": "구다이글로벌 E-Commerce MD 정규직 : · 25.09~ 재직중"}, {"company": "MBX Global E-Commerce 아마존 AMD (화장품) 인턴 +", "text": "MBX Global E-Commerce 아마존 AMD (화장품) 인턴 + 정규직 : · 24.03~25.08"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "문서영", "dept": "경제통상학부(부전공:통계학과)", "year": "", "job_type": "바이오", "current": "한국생명공학연구원 인턴연구원_생명자원실_바이오소재 클러스터 육성 ((예정", "is_current": false, "experiences": [{"company": "한국생명공학연구원 인턴연구원_생명자원실_바이오소재 클러스터 육성 ((예정", "text": "한국생명공학연구원 인턴연구원_생명자원실_바이오소재 클러스터 육성 ((예정)) · 24.01~24.10"}], "education": [], "awards": ["경북대학교 통계학과 통계콘서트 (통계학과장상 수상)", "2023 경북대학교 K-디지털플랫폼 리빙랩 아이디어 공모전 (장려상)", "삼성증권 경제교육봉사 야호 12기 (우수단원, 우수기관 선정)", "삼성증권 대학생 SNS 마케팅 자문단 (매월 전기간 우수자, 최종 우수자 선정)", "미국국립과학재단 참여 연구 실험 진행자 및 데이터 관리자", "대구창조경제혁신센터 창업경진대회 운영진", "한중일 학술대회 주최진", "한국산업인력공단 교외근로"], "certs": ["ADsP", "컴퓨터활용능력 2급"], "etc": [], "linkedin": ""}, {"name": "문정인", "dept": "경제통상학부(19)", "year": "19", "job_type": "", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["샤넬코리아 파견 계약직 (24.02~)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "민시온", "dept": "컴퓨터학부(2019112635)", "year": "", "job_type": "IT, 금융", "current": "컴퓨터학부 클라우드 시스템 응용 AI 연구실 -", "is_current": false, "experiences": [{"company": "컴퓨터학부 클라우드 시스템 응용 AI 연구실 -", "text": "컴퓨터학부 클라우드 시스템 응용 AI 연구실 - · 2021.07 ~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "박경태", "dept": "경영학부(19)", "year": "19", "job_type": "광고, 마케팅", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["● 경북대학교 경상대학 기획/마케팅 학회 M&B 36기 (22.06~)", "● K&G 상상유니브 상상프렌즈 16기 (2023.03~09)", "● 창업 IT 프로젝트 팀 ‘클래푸’ 소속 댕부해 앱 마케팅팀 (23.08~)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "박관우", "dept": "통계학과(18)", "year": "18", "job_type": "데이터, IT", "current": "CJ ONS real internship", "is_current": true, "experiences": [{"company": "CJ ONS real internship", "text": "CJ ONS real internship · 23.01 ~ 23.02"}, {"company": "스타트업[별따러가자]", "text": "스타트업[별따러가자] · 23.07 ~ 23.10"}, {"company": "우리카드", "text": "우리카드 · 23.12~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "박근우", "dept": "경영학부 17", "year": "", "job_type": "자산운용업, 금융", "current": "미래에셋증권 교육생", "is_current": true, "experiences": [{"company": "미래에셋증권 교육생", "text": "미래에셋증권 교육생 · 21.03 ~ 21.06"}, {"company": "트러스톤 자산운용 솔루션 본부 인턴", "text": "트러스톤 자산운용 솔루션 본부 인턴 · 22.08 ~ 23.02"}, {"company": "트러스톤 자산운용 자산배분팀", "text": "트러스톤 자산운용 자산배분팀 · 23.03 ~"}, {"company": "펀두투자권유대행인", "text": "펀두투자권유대행인"}], "education": [], "awards": ["[학회]", "DART 활동 (2021.03 ~  2021.12)", "퀀트 모의투자 시리즈 작성", "퀀트 관련 페이퍼 작성 (TDF, Pair Trading, Martin Gale Betting, ESG)", "사내 자산배분 시스템 개발 (DB 구축 및 UI 개발)", "정량적 자산배분 모델 개발 (HRP, BLM) 등", "URP_경영학부_김성수교수님 (~21.12)", "DIP 빅데이터 경진대회 입상 (상품개발)"], "certs": ["CFA 리서치 챌린지 (F&F)", "투자자산운용사", "증권투자권유대행인"], "etc": ["DB금융경제 공모전 입선"], "linkedin": ""}, {"name": "박동신", "dept": "경영학부 (17학번)", "year": "", "job_type": "물류", "current": "포스코인터내셔널 체험형 인턴", "is_current": false, "experiences": [{"company": "포스코인터내셔널 체험형 인턴", "text": "포스코인터내셔널 체험형 인턴 · 2022.08"}, {"company": "HMM (구 현대상선) 벌크선 사업부 채용연계형 인턴", "text": "HMM (구 현대상선) 벌크선 사업부 채용연계형 인턴 · 2024.01 ~ 2024.02"}], "education": [], "awards": ["신한은행 대학생 홍보대사 35기 최우수팀 (2021년 하반기 활동)", "한국무역협회, 경북도청 주관 ‘경북 청년 무역사관학교’ 10기 (2022년)", "입학처 주관 KNU 전공알림단 (2021년)", "경상대학 산하 ‘문화산업연구소’ 교내 근로 (2022-1학기)", "경영학부 과 사무실 교내 근로 (2022-2학기)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "박선영", "dept": "경영학부 18학번 (편입) / 1. 경남창조경제혁신센터 정부 창업지원금 3,000만원", "year": "", "job_type": "IT, 교육", "current": "한국어 튜터", "is_current": true, "experiences": [{"company": "한국어 튜터", "text": "한국어 튜터 · 2020.3-"}, {"company": "Washington DC Women’s Foreign Policy Gro", "text": "Washington DC Women’s Foreign Policy Group - Communications Intern · 2023.8-2024.1"}], "education": [], "awards": ["2. 대화카드게임 ‘Naked us’ 제작 및 아티스트 토크 진행 (샌프란시스코)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "박성원", "dept": "경영학부(22) / 1. (24) 감정평가사 1차 합/2차 불", "year": "22", "job_type": "부동산, 금융", "current": "경북대 체육진흥센터 근로 장학", "is_current": false, "experiences": [{"company": "경북대 체육진흥센터 근로 장학", "text": "경북대 체육진흥센터 근로 장학 · 2022.03 ~ 2023.06"}, {"company": "한국자산관리공사 강원지역본부 사무보조 아르바이트", "text": "한국자산관리공사 강원지역본부 사무보조 아르바이트 · 2023.09~2023.12"}, {"company": "tesat 1급", "text": "tesat 1급"}], "education": [], "awards": [], "certs": ["2. (25) 감정평가사 1차 합/ 2차 (포기)            - (25) KB-YMCA 폴라리스 대학생금융봉사단"], "etc": [], "linkedin": ""}, {"name": "박성헌", "dept": "심리학과(16)", "year": "16", "job_type": "", "current": "국도화학 전략구매팀 응용소재사업부 구매 담당", "is_current": true, "experiences": [{"company": "국도화학 전략구매팀 응용소재사업부 구매 담당", "text": "국도화학 전략구매팀 응용소재사업부 구매 담당 · 24.02~"}, {"company": "타이코에이엠피(TE) 구매부 Direct팀 현장실습", "text": "타이코에이엠피(TE) 구매부 Direct팀 현장실습 · 23.02~23.07"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "박소영", "dept": "철학과(19) 정치외교학과(19)", "year": "19", "job_type": "IT, 광고, 마케팅", "current": "", "is_current": true, "experiences": [], "education": [], "awards": ["#아나운서 #기자 #방송 #언론                                                                              1. 영남일보 청년기자단                                                                                          2. 연합뉴스 인턴기자                                                                                                    3. TBN대구교통방송 취재리포터"], "certs": [], "etc": [], "linkedin": ""}, {"name": "박수교", "dept": "전자공학부(19)", "year": "19", "job_type": "금융", "current": "씨앗자산운용 주식운용본부", "is_current": true, "experiences": [{"company": "씨앗자산운용 주식운용본부", "text": "씨앗자산운용 주식운용본부 · 25.02~재직 중"}], "education": [], "awards": ["[학회]", "경상대학 금융데이터 분석학회 DART 13기 (23-2)", "경상대학 금융데이터 분석학회 DART 14기 임원 (24-1), 15기 회장 (24-2)", "한국투자증권 7회 대학생 모의투자대회 해외리그 5위 수상 ('23)", "키움증권 33회 대학생 모의투자대회 해외리그 3위 수상 ('23)", "한국투자증권 8회 대학생 모의투자대회 국내리그 2위 수상 ('23)", "한국투자증권 9회 대학생 모의투자대회 통합리그 3위 수상 ('24)", "제 10회 DB GAPS 투자대회 3위 (‘24)"], "certs": ["ADSP (데이터분석 준전문가)", "SQLD (SQL 개발자)", "투자자산운용사"], "etc": ["하이투자증권X뉴지스탁 서포터즈('23)"], "linkedin": ""}, {"name": "박영제", "dept": "경영학부 (14)", "year": "14", "job_type": "", "current": "롯데백화점 신규개발MD전략팀", "is_current": true, "experiences": [{"company": "롯데백화점 신규개발MD전략팀", "text": "롯데백화점 신규개발MD전략팀 · 22.02-23.09"}, {"company": "태광공업 영업기획팀", "text": "태광공업 영업기획팀 · 23.10~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "박재원", "dept": "행정학부(18) / 경제통상학부(복)", "year": "18", "job_type": "", "current": "엠디엠자산운용 / 해외투자본부 / 해외투자1팀 / 주임", "is_current": true, "experiences": [{"company": "엠디엠자산운용 / 해외투자본부 / 해외투자1팀 / 주임", "text": "엠디엠자산운용(주) / 해외투자본부 / 해외투자1팀 / 주임 · 25.03 -"}, {"company": "Sang Investment LLC / Development & Inve", "text": "Sang Investment LLC / Development & Investment Team / Analyst · 23.06 - 25.02"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "박채린", "dept": "심리학과(17) / 경영학과(부전공)", "year": "17", "job_type": "IT, 교육", "current": "비상교육 글로벌컴퍼니 올비아서비스기획 Cell CP ( 07)", "is_current": true, "experiences": [{"company": "비상교육 글로벌컴퍼니 올비아서비스기획 Cell CP ( 07)", "text": "비상교육 글로벌컴퍼니 올비아서비스기획 Cell CP ( 07) · 23.01 ~"}, {"company": "비상교육 출판컴퍼니 에듀테크전략 Core 서비스기획 Cell CP", "text": "비상교육 출판컴퍼니 에듀테크전략 Core 서비스기획 Cell CP · 23.07 ~"}, {"company": "엑셀 하", "text": "엑셀 하 | 파워포인트 중상; 파이썬 중; sql 하"}], "education": [], "awards": ["M&B 31기", "2022 스페인 말라가대학 교환학생", "2018 심리학과 학생회 다온 홍보부장", "2022 K-디지털 트레이닝 빅데이터 분석과정", "2022 미래에셋 박현주재단 장학생 글로벌 특파원", "2021 대구 시빅해킹단 최우수상 (대구시장상)", "2021 대구 공익데이터 실험실 데이터 활동가", "2020 초록우산 어린이재단 온라인 서포터즈"], "certs": ["컴활 1급", "TOEIC(930)"], "etc": ["2018 H-점프스쿨 장학샘"], "linkedin": ""}, {"name": "배지수", "dept": "경영학부 (16)", "year": "16", "job_type": "광고, 마케팅", "current": "제일기획 Account Executive (Brand Experience", "is_current": true, "experiences": [{"company": "제일기획 Account Executive (Brand Experience", "text": "제일기획 Account Executive (Brand Experience) - · 2023.02 ~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "변재민", "dept": "중어중문학과(19)", "year": "19", "job_type": "IT", "current": "11번가 백엔드서비스기획 주문/Payment 체험형 인턴", "is_current": true, "experiences": [{"company": "11번가 백엔드서비스기획 주문/Payment 체험형 인턴", "text": "11번가 백엔드서비스기획 주문/Payment 체험형 인턴 · 2024.07 ~"}, {"company": "당근마켓 Product Manager 체험형 인턴", "text": "당근마켓 Product Manager 체험형 인턴 · 2023.07 - 2024.01"}], "education": [], "awards": ["경북대학교 교육봉사 동아리 미담장학회 기획팀장", "경북대학교 IT 프로젝트 팀 Wim 크누마켓 프로젝트 팀원으로 서비스 기획", "멋쟁이 사자처럼 10기 기획&디자인 트랙", "스타트업 마케팅 프로젝트 팀장", "CJ Remote Intership Program Citizen Track 수료", "페이스북 유니버시티 4기 개인 최우수 학생상", "롯데드림메이커스 5기"], "certs": [], "etc": [], "linkedin": ""}, {"name": "변찬현", "dept": "자연과학자율전공(24)", "year": "24", "job_type": "IT", "current": "", "is_current": false, "experiences": [], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "서명원", "dept": "자연과학자율전공 19", "year": "", "job_type": "IT, 데이터, 개발", "current": "SMCP, 스마트이어, SI 개발, AI 개발", "is_current": false, "experiences": [{"company": "SMCP, 스마트이어, SI 개발, AI 개발", "text": "SMCP, 스마트이어, SI 개발, AI 개발 · 2022년 06월 - 2023년 07월"}, {"company": "스마트이어, 의료 인공지능 개발", "text": "스마트이어, 의료 인공지능 개발 · 2022년 01월 ~ 2022년 04월"}], "education": [], "awards": ["컴퓨터학부(20~)", "인공지능전공(복수전공/22~)", "자율전공부 학생회 사무국장(19년도)", "Software Maestro 14기", "카풀 서비스를 출시하였습니다.", "기획 설계 개발(FE,BE) 마케팅 QA Growth", "의료 인공지능 개발(스마트이어)", "환자의 신체 데이터를 받아 가공 및 추론하여 질병의 유무와 심각도를 반환하는 모델을 개발"], "certs": [], "etc": ["EMR 웹앱 개발(SMCP)", "의료진과 환자를 위한 병의원 EMR 시스템을 개발"], "linkedin": ""}, {"name": "서민지", "dept": "경영학과(19)", "year": "19", "job_type": "관광", "current": "대구은행 하계 단기현장실습(2021)", "is_current": false, "experiences": [{"company": "대구은행 하계 단기현장실습(2021)", "text": "대구은행 하계 단기현장실습(2021)"}], "education": [], "awards": ["대구국제공항 마케팅 협업진행(2019)", "중소벤처기업진흥공단 개선과제발굴 활동(2020)", "한국장학재단 마케팅 협업 진행(20.08~20.12)", "대학생청소년교육지원사업(21.03~22.02)", "대구국제공항 마케팅 협업 (2021)", "대구 금복주 마케팅 협업 진행(2021)", "경북대학교 경상대학 기획/마케팅 학회 M&B 33기(21.09~,  대표)", "밀리의 서재 밀리 에디터 클럽 1기(2023)"], "certs": ["#NAME?"], "etc": [], "linkedin": ""}, {"name": "서주연", "dept": "불어불문학과(18) / 경제통상학부 복수전공", "year": "18", "job_type": "교육", "current": "포스코인재창조원 인턴 및 계약직 - 기업시민섹션", "is_current": true, "experiences": [{"company": "포스코인재창조원 인턴 및 계약직 - 기업시민섹션", "text": "포스코인재창조원 인턴 및 계약직 - 기업시민섹션 · 2023.05~2023.09"}, {"company": "포스코인재창조원 계약직 - 조직역량개발그룹", "text": "포스코인재창조원 계약직 - 조직역량개발그룹 · 2023.11~2023.12"}, {"company": "현대엘리베이터 교육운영 계약직", "text": "현대엘리베이터 교육운영 계약직 · 2024.03~"}], "education": [], "awards": ["마케팅/기획 학회 M&B", "대구은행 현장실습", "자원봉사", "1) 새마을해외봉사단", "2) 한국장학재단 대학생재능봉사캠프", "3) 대구청년알바돌봄 서포터즈"], "certs": ["한국사능력검정시험 1급", "토익 스피킹 IH"], "etc": [], "linkedin": ""}, {"name": "서현지", "dept": "경제통상학부(17) / 통계학과(복수전공)", "year": "17", "job_type": "IT, 데이터, 보험", "current": "농업정책보험금융원 정책보험본부", "is_current": true, "experiences": [{"company": "농업정책보험금융원 정책보험본부", "text": "농업정책보험금융원 정책보험본부"}, {"company": "보험기획, 통계", "text": "보험기획, 통계 · 2022.05 ~ 2023.12"}, {"company": "한화이센셜 구매팀, it", "text": "한화이센셜 구매팀, it · 2025.04 ~"}, {"company": "사회조사분석사 2급", "text": "사회조사분석사 2급"}, {"company": "Skills: Java, Spring Framework, MySql, E", "text": "Skills: Java, Spring Framework, MySql, Excel, Python, SAS, SQL, R"}], "education": [], "awards": ["문화산업연구회 홍보팀장 (2017~2018)", "생활협동조합 학생사무국 팀장 (2019~2020)", "생활협동조합 학생이사 (2020)", "한화시스템 beyond sw캠프 (2024)", "국어학원 내부 시스템 개발 프로젝트 (2024, 풀스택 개발자 및 pm)"], "certs": ["컴활", "한국사 1급", "ADsP", "SQLD", "빅데이터분석기사", "정보처리기사"], "etc": [], "linkedin": ""}, {"name": "선금빈", "dept": "경영학부(18)", "year": "18", "job_type": "금융, 데이터, ESG", "current": "CJ 올리브네트웍스 데이터분석 인턴", "is_current": false, "experiences": [{"company": "CJ 올리브네트웍스 데이터분석 인턴", "text": "CJ 올리브네트웍스 데이터분석 인턴 · 2022.5 ~ 2022.8"}, {"company": "세계은행 지속가능개발부 녹색성장기금(KGGTF) 인턴", "text": "세계은행 지속가능개발부 녹색성장기금(KGGTF) 인턴 · 2022.11 ~ 2022.12"}, {"company": "Bloomberg Market Concepts", "text": "Bloomberg Market Concepts | 엑셀, 파이썬"}], "education": [], "awards": ["23년도 예일대 여름 계절학기 교환학생", "23년도 ICN Business School 복수학위 진행중", "학부연구생_경영학부 김성수교수님(2022.8 ~ 2022.9)", "교내 금융데이터분석 학회 DART(https://www.knudart.com/)", "DART 10기(2022.03 ~ 2022.06)  DART 11기 회장(2022.07 ~ 2022.12)", "제4회 대구 빅데이터 분석 경진대회 대상", "DB금융경제 공모전 가작", "현대자동차그룹 점프스쿨 5+기"], "certs": ["TOEIC 990 / TOEFL 114"], "etc": ["SK SOVAC AMBASSADOR 3기", "한-아세안 정치안보포럼 학생대표"], "linkedin": ""}, {"name": "송영우", "dept": "융합학부 로봇공학과(20)", "year": "20", "job_type": "", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["iViS SFC 개발 팀 (차량용 소프트웨어 개발) - 2025.09.01"], "certs": [], "etc": [], "linkedin": ""}, {"name": "신수민", "dept": "조경학과 (12) / 영어영문학과 (복수전공)", "year": "12", "job_type": "", "current": "Deloitte 딜로이트 안진회계법인, ESG Consultant", "is_current": true, "experiences": [{"company": "Deloitte 딜로이트 안진회계법인, ESG Consultant", "text": "Deloitte 딜로이트 안진회계법인, ESG Consultant · 2023.10 - 재직중"}, {"company": "EY Consulting, ESG Consultant", "text": "EY Consulting, ESG Consultant · 2022.04 - 2023.10"}, {"company": "UNCCD 유엔사막화방지협약", "text": "UNCCD 유엔사막화방지협약 · 2018.05 - 2018.11"}], "education": [], "awards": ["서울대학교 환경대학원, 환경계획학과 환경관리학전공 (2020.03 - 2022.02)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "신재관", "dept": "경영학부(17)", "year": "17", "job_type": "", "current": "Simsan Ventures 투자 심사역", "is_current": true, "experiences": [{"company": "Simsan Ventures 투자 심사역", "text": "Simsan Ventures 투자 심사역 | 20; AI/Tech 스타트업 투자 (Pre-seed to Series A), 2024 하반기 Pre-IPO 딜 참여 · 24.07. ~ 현재"}, {"company": "Institute of Development Studies Researc", "text": "Institute of Development Studies Research Assistant | 20 09. 탄소배출권을 활용한 LMIC 내 사회적 가치 창출 연구 참여 · 24.08. ~"}, {"company": "THEKIE ESG Research Unit Visiting Resear", "text": "THEKIE ESG Research Unit Visiting Researcher | 20 · 23.10. ~"}, {"company": "농업정책보험금융원 정책자금관리실 검사역", "text": "농업정책보험금융원 정책자금관리실 검사역 | 20; 농림수산정책자금 약 41조원 감독 · 21.07. ~"}, {"company": "농업정책보험금융원 정책자금관리실 인턴", "text": "농업정책보험금융원 정책자금관리실 인턴 | 20 · 21.03. ~"}], "education": [], "awards": ["농림부 합동감사반 정책자금 전문가 파견", "Institute of Development Studies, University of Sussex MA Development Studies"], "certs": [], "etc": [], "linkedin": ""}, {"name": "심세민", "dept": "철학과 (18) / 인문대학 정치-경제-철학(PPE)융합전공", "year": "18", "job_type": "", "current": "김위홍 21대 국회의원 선거 예비후보 선거사무원", "is_current": false, "experiences": [{"company": "김위홍 21대 국회의원 선거 예비후보 선거사무원", "text": "김위홍 21대 국회의원 선거 예비후보 선거사무원 · 2020.01-2020.02"}, {"company": "주한미군사령부 주한미군사령관 Front Office PSD (군복무)", "text": "주한미군사령부 주한미군사령관 Front Office PSD (군복무) · 2020.08-2021.12"}, {"company": "윤성에프엔씨 데이터 가공 업무", "text": "윤성에프엔씨 데이터 가공 업무 · 2022.01-2022.02"}, {"company": "영어학원", "text": "영어학원 · 2023.03-"}], "education": [], "awards": ["정치외교학 부전공", "KNU PRIME 사업 해외어학연수 프로그램 (The University of Liverpool)", "2022학년도 2학기 KNU 버디 프로그램", "인문사회 SW창의교육과정 (Python을 활용한 창의적 문제해결)", "국제회의(Convention) 전문가 산학 프로젝트", "AAS-in-Asia 2023, 대구 스탭 참여 (2023.03-2023.07)", "U-SPECK(한국 대학생 평화안보연구회) 1기 (2023)"], "certs": ["TOEIC 990", "TOEIC Speaking AL", "한국사능력검정 2급"], "etc": [], "linkedin": ""}, {"name": "안아름", "dept": "경영 (23)", "year": "23", "job_type": "마케팅, 금융", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["자율전공부 학생회 23 문체부장"], "certs": [], "etc": [], "linkedin": ""}, {"name": "안홍균", "dept": "경제통상학부(20)", "year": "20", "job_type": "", "current": "LG이노텍 구미노경팀 확보task", "is_current": false, "experiences": [{"company": "LG이노텍 구미노경팀 확보task", "text": "LG이노텍 구미노경팀 확보task · 23.7.-23.12."}], "education": [], "awards": ["2022 동성로핫축제 기획팀장(22.7.)", "2022 부산국제코미디페스티벌 야외행사팀(22.8.)", "현대자동차 H-점프스쿨(23.3.-23.12.)", "코멘토 직무부트캠프 HR 수료(24.5.)", "[대내]", "경북대학교 창업경진대회 장려상(20.)", "IT교육센터 파이썬 기초 수료(22.10.)", "크레텍 장학(22.)"], "certs": [], "etc": ["경북대학교 경상대학 제1회 학술제 우수상(22.12.)", "경북대학교 경상대학 동아리 경제학회 회장(23.3.-23.6.)", "경북대학교 경상대학 동아리 소셜이펙트 회장(24.3.-)", "대학생ESG위원회(24.5.-)", "체코 토마스바타대학 교환(24.9.-)"], "linkedin": ""}, {"name": "여원기", "dept": "경영학부(16)", "year": "16", "job_type": "금융", "current": "신용보증기금 본점 감사실 감사기획팀", "is_current": true, "experiences": [{"company": "신용보증기금 본점 감사실 감사기획팀", "text": "신용보증기금 본점 감사실 감사기획팀 · ‘23.2월~현재"}, {"company": "신용보증기금 대구지점", "text": "신용보증기금 대구지점 · ’21.8월~’23.1월"}], "education": [], "awards": ["신용보증기금 구미지점 체험형 인턴(’20.9월~‘20.11월)", "UC 버클리 서머스쿨(’20.7월~‘20.8월)", "국민은행 황금네거리지점 디지털서포터즈(’20.1월~‘20.2월)"], "certs": ["신용분석사"], "etc": [], "linkedin": ""}, {"name": "오유라", "dept": "교육학 15 / 국어교육 복수전공", "year": "", "job_type": "교육", "current": "前 중고등학교 교사( 9 ~  2.)", "is_current": true, "experiences": [{"company": "前 중고등학교 교사( 9 ~  2.)", "text": "前 중고등학교 교사(2020. 9 ~ 2023. 2.) | 주요 업무: 에듀테크, 학교 홍보(언론 보도, 홍보 자료 제작); 주요 업무: 교육 ODA(개발협력), 한-아프리카 국제 포럼, 청년 공모전"}, {"company": "現 Stanford 교육대학원 국제비교교육 석사과정 ( 9. ~)", "text": "現 Stanford 교육대학원 국제비교교육 석사과정 (2024. 9. ~) | 관심 분야: Teacher Education, UNESCO, ESD, EdTech, Philanthropy; 한국어 교원 3급; 중등학교 정교사 2급(국어, 교육학); 청소년 상담사 3급"}, {"company": "아이엘츠 7.0", "text": "아이엘츠 7.0"}], "education": [], "awards": ["[리더십] 영남일보 대학생 기자단 대표, 희망인재프로젝트 대표, 학과 부학회장, 학과 교육봉사 동아리 대표, 학과 학년 대표", "[국제화] 유럽권 교환학생 프로그램(헝가리 페치대학), 미국 명문대 썸머스쿨 프로그램(위스콘신매디슨대학), 사범대학 GTU 사업단 미국 퀸즐랜드대 예비교사 하계 연수, GTU 사업단 Global Ambassador, 국제교류처 글로벌 멘토", "[근로] KNU 융합교육센터 연구보조(4개월), 플립드러닝 연구 보조(2개월), 어학교육원 교내 근로(3학기)", "[미디어] Hi-KNU, 허프포스트코리아, 영남일보, 교육부 행복한교육, 요르단 NGO", "前 유네스코한국위원회 국제협력사업실 전문관(2023. 8. ~ 2024. 8.)"], "certs": ["ODA 일반 자격증", "한국사 3급", "토익 960", "토플 100"], "etc": [], "linkedin": ""}, {"name": "왕채민", "dept": "경제통상학부(20)", "year": "20", "job_type": "금융, 데이터", "current": "군 복무", "is_current": false, "experiences": [{"company": "군 복무", "text": "군 복무 · 23.02 ~ 24.08"}, {"company": "Skills :", "text": "Skills :"}, {"company": "Excel, Python, QuantiWise, DataGuide", "text": "Excel, Python, QuantiWise, DataGuide"}], "education": [], "awards": ["[학회]", "Dart(https://www.knudart.com/) 8기(21-상) 입회, 10기(22-상) 회장", "KNU BlackCow Academic Endowment Portfolio 최초 설립 및 대표매니저 (23.10 ~)", "(KNU BlackCow Academic Endowment Fund (canva.site))", "금융, 데이터 관련 프로젝트(레포트) x 5", "퀀트투자 전략 x 3", "[대회, 공모전]", "금융 관련 대회 수상 x 3"], "certs": [], "etc": ["[학부연구생]", "경영학부 김성수 교수님 (22.07 ~ 22.12)"], "linkedin": ""}, {"name": "원석민", "dept": "심리학과(16)", "year": "16", "job_type": "IT, 광고, 마케팅, 데이터", "current": "토스코어 Platform Product Owner(정규직)", "is_current": true, "experiences": [{"company": "토스코어 Platform Product Owner(정규직)", "text": "토스코어 Platform Product Owner(정규직) · 2025.03 ~ 재직 중"}, {"company": "토스코어 Product Operation Specialist(계약직)", "text": "토스코어 Product Operation Specialist(계약직) · 2023.09 ~ 2025.02"}, {"company": "당근마켓 광고사업실 PM(체험형 인턴)", "text": "당근마켓 광고사업실 PM(체험형 인턴) · 2022.09 ~ 2023.08"}, {"company": "한능검 1급", "text": "한능검 1급"}], "education": [], "awards": ["1. 기획/마케팅 학회 'Main&Bits'", "공모전 4회 수상(2020. 04 ~ 2020. 12)", "기획/마케팅 학회 'Main&Bits' 서른 두 번째 대표(2021. 01 ~ 2021. 06)", "2. 스타트업 '셰빌리티'에서 8주 현장실습(2021. 07. 01 ~ 2021. 08. 25)", "3. IT 프로젝트 팀 'Wim'에서 '크누마켓' 프로젝트 리드(PM 등) (2021. 06 ~ 2022. 05)"], "certs": ["1. SQLD"], "etc": [], "linkedin": ""}, {"name": "유윤종", "dept": "지구과학교육과(14)", "year": "14", "job_type": "", "current": "DH브랜드랩 ( : 요식업", "is_current": false, "experiences": [{"company": "DH브랜드랩 ( : 요식업", "text": "DH브랜드랩 (2025~) : 요식업 | 바로해 (2024~) : 굿즈 제조업; 씨케이티 (2024~) : 요식업; 이프베어 (2023~2024) : 굿즈 제조업; 오르요 (2022~2023) : 요가 사업"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "유지예", "dept": "컴퓨터학부 (21) / 통계학과 (부전공)", "year": "21", "job_type": "IT, 금융, 개발", "current": "2025 케이뱅크 채용연계형 IT인프라팀 인턴", "is_current": true, "experiences": [{"company": "2025 케이뱅크 채용연계형 IT인프라팀 인턴", "text": "2025 케이뱅크 채용연계형 IT인프라팀 인턴 · 2025.07 - 2025.08"}, {"company": "케이뱅크 뱅킹서비스개발팀", "text": "케이뱅크 뱅킹서비스개발팀 · 2025.09 ~"}], "education": [], "awards": ["2022 컴퓨터학부 제13대 학생회 홍보부장", "2023 컴퓨터학부 sw교육봉사동아리 L&C 부회장", "2021 컴퓨터학부 해커톤 장려상", "2022 대구를 빛내는 sw 해커톤 최우수상", "2023 캡스톤디자인 해외네트워크 프로그램 : CES 2023 참석 (2023.01.04 - 01.10) - LINC 3.0 사업단 주관", "미국 실리콘벨리 산호세 프로그램 연수 (2023.07.16 - 08.07)", "프랑스 ESME 수드리아 공과대학 (2023.09.01 ~ )", "2021 전라북도 공공데이터 공모전 우수상"], "certs": ["#NAME?"], "etc": ["2022 대경권 공공데이터 경진대회 우수상", "2023 K-digital 리빙랩 해커톤 장려상", "2024 스마트 ICT 해상물류 경진대회 울산항만공사사장상 (금상)", "EMS for Children", "교육봉사자가 필요한 각 기관(센터 및 학교, 보육원 등)과 대학교 자율봉사자를 연결해주는 앱 개발", "출시 후 현재, 서버 문제로 재배포 준비 중"], "linkedin": ""}, {"name": "윤진녕", "dept": "경영학부(16)", "year": "16", "job_type": "", "current": "빌리언폴드자산운용 인턴", "is_current": false, "experiences": [{"company": "빌리언폴드자산운용 인턴", "text": "빌리언폴드자산운용 인턴 · 2022.03~2022.05"}], "education": [], "awards": ["한국EMA파트너스 (주식)투자운용팀 연구원(현)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "이금정", "dept": "기계공학부(20)", "year": "20", "job_type": "개발", "current": "카이스트 신경재활공학 연구실 석사과정", "is_current": true, "experiences": [{"company": "카이스트 신경재활공학 연구실 석사과정", "text": "카이스트 신경재활공학 연구실 석사과정 · 25.09~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "이도현", "dept": "경제통상학부 (20)", "year": "20", "job_type": "금융, 증권사, 자산운용업, 투자", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["경상대학 무역동아리 KITS(23.09~23.12)", "청년 글로벌 개척단 CES 2025", "신한은행 체험형 인턴 우수(2026 동계)"], "certs": ["신용분석사", "투자자산운용사", "ADsP", "한국사능력검정1급", "토익 940"], "etc": [], "linkedin": ""}, {"name": "이동규", "dept": "전자공학부(20)", "year": "20", "job_type": "제조업", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["K-water 대국민 빅데이터 콘테스트 수상", "소방안전 AI 예측 공모전 수상", "[해외]", "23’ 윈터스쿨 (독일 THU)", "24’ 여름 WFK IT봉사단(인도네시아 POLIJE)", "25’ 대구광역시 4차산업혁명 청년체험단7기 (미국 CES2025)", "25’ 글로벌챌린저 (프랑스 BBS)", "[대내외활동]"], "certs": ["토익 955", "컴활 1급", "ADsP"], "etc": ["산학재단 AI온라인 인턴쉽", "교내 반도체 트랙", "6시그마"], "linkedin": ""}, {"name": "이명현", "dept": "경영학부(16)", "year": "16", "job_type": "", "current": "삼성SDI 헝가리법인 인턴", "is_current": true, "experiences": [{"company": "삼성SDI 헝가리법인 인턴", "text": "삼성SDI 헝가리법인 인턴 · 22.1 ~ 22.7"}, {"company": "담당업무: 생산계획", "text": "담당업무: 생산계획 | 삼성SDI 본사 People팀 · 22.12 ~"}, {"company": "담당업무: 조직문화 , 노사협의/ER", "text": "담당업무: 조직문화 , 노사협의/ER · 23.2 ~ 23.10"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "이삭", "dept": "물리교육과(19) / 2025 중등교원임용(경기)", "year": "19", "job_type": "", "current": "안산 성안중학교", "is_current": true, "experiences": [{"company": "안산 성안중학교", "text": "안산 성안중학교 · 25.3~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "이상민", "dept": "컴퓨터학부(23)", "year": "23", "job_type": "", "current": "제 11기 과학기술전문사관 후보생", "is_current": false, "experiences": [{"company": "제 11기 과학기술전문사관 후보생", "text": "제 11기 과학기술전문사관 후보생 · 23.12 ~ 26.02"}, {"company": "국방과학연구소 근무", "text": "국방과학연구소 근무 · 26.03~ 29.03"}, {"company": "4대보험, 풀타임", "text": "4대보험, 풀타임"}], "education": [], "awards": ["경북대학교 장학기금 샘 인재 장학생 (2024.12)", "론드코퍼레이션 주식회사 정규직"], "certs": [], "etc": [], "linkedin": ""}, {"name": "이세진", "dept": "경제통상학부 22 (편입) / 체코 교환학생 마사릭대학 2025.1학기", "year": "", "job_type": "데이터, 금융, 보험", "current": "일경험 인턴 - 글로벌스퀘어 2025상반기", "is_current": false, "experiences": [{"company": "일경험 인턴 - 글로벌스퀘어 2025상반기", "text": "일경험 인턴 - 글로벌스퀘어 2025상반기"}, {"company": "한국 재정정보원 위탁사무원", "text": "한국 재정정보원 위탁사무원 · 2026-04-13 ~ 2026-09-31"}, {"company": "깃허브 https://github.com/i0344", "text": "깃허브 https://github.com/i03445156-source"}], "education": [], "awards": ["수상-", "2024 경상대학 학술제 본선 진출", "2025 경상대학 학술제 최우수상", "2025비댁스 블록체인 아이디어톤 본선진출", "한국 재정정보원 데이터분석 미니프로젝트", "수상 3등", "교육-", "ALT청년창업교육 수료"], "certs": ["자격증-", "ADSP", "SQLD", "투자자산운용사", "빅데이터분석기사", "토익 880"], "etc": ["IM bank 데이터분석가 양성과정 8기", "2024대구 청년 포럼 기획추진단 기획단", "2026 mit gsw 서포터즈 -운영요원", "대외활동-", "2024.대학생청소년 교육 지원사업", "2024~2025 EBS 화상튜터링 멘토", "2025 경상대학 외국인 유학생 멘토", "2026 Bdan  서포터즈 3기", "동아리-", "MIRO", "python, R , SQL , Tablue, SPSS"], "linkedin": ""}, {"name": "이소은", "dept": "경제통상학부(20)", "year": "20", "job_type": "", "current": "한국전력기술 본사 사무 인턴", "is_current": true, "experiences": [{"company": "한국전력기술 본사 사무 인턴", "text": "한국전력기술 본사 사무 인턴 · 2025.4 ~ 2025.10"}, {"company": "한국농수산식품유통공사 aT 온라인도매시장운영본부 주임", "text": "한국농수산식품유통공사 aT 온라인도매시장운영본부 주임 · 2025.12 ~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "이순정", "dept": "사회학과(18학번)", "year": "", "job_type": "마케팅, 광고", "current": "포포몬 플랫폼사업부 마케팅 인턴", "is_current": false, "experiences": [{"company": "포포몬 플랫폼사업부 마케팅 인턴", "text": "포포몬 플랫폼사업부 마케팅 인턴 · 24.03~24.06"}], "education": [], "awards": ["미디어커뮤니케이션학과 복수 전공", "2019. 사회학과 학생회 멘토링부장", "2021. 09 ~ 경상대학 학술동아리 T.O.P", "2022. 01 ~ 경상대학 학술동아리 T.O.P 기획부장", "사회과학대학 디지털 역량 교육(파이썬 프로그래밍 기초 및 실습) 참여", "2021. 제일기획아이디어페스티벌, HS애드 영크리에이터스 컴페티션 참여", "2022. Facebook University 디지털 마케팅 교육"], "certs": ["컴퓨터활용능력 1급", "SQLD"], "etc": [], "linkedin": ""}, {"name": "이영훈", "dept": "경영학부(17)", "year": "17", "job_type": "컨설팅, 전략, 금융", "current": "Deloitte 안진 금융기관 자금세탁방지, 위험관리 및 내부통제 컨설팅", "is_current": false, "experiences": [{"company": "Deloitte 안진 금융기관 자금세탁방지, 위험관리 및 내부통제 컨설팅", "text": "Deloitte 안진 금융기관 자금세탁방지, 위험관리 및 내부통제 컨설팅 채용연계형 인턴 · 23.10~"}], "education": [], "awards": ["KNU PRIME 사업 해외어학연수 프로그램 (University of Wolverhampton)", "경북대학교 컴퓨터학부 창업 아이템 경진대회 우수상", "경북대학교 총학생회 중앙감사위원회 1기 감사위원", "경북대학교 경상대학 전략학회 CMI 창설 및 1, 2기 회장", "금융감독원 금융소비자리포터", "대구광역시 공공데이터 활용 경진대회 본선 진출", "JA KOREA 대학생 경제교육봉사단 23기, 24기", "컴프라 탑로더 대만시장 진출 전략 수립 프로젝트"], "certs": [], "etc": ["경북대학교 취업경쟁력 제고 프로젝트 전략기획총괄"], "linkedin": ""}, {"name": "이유영", "dept": "경영학부(19) / 미디어커뮤니케이션학과(부전공)", "year": "19", "job_type": "금융", "current": "-사회조사분석사 2급", "is_current": false, "experiences": [{"company": "-사회조사분석사 2급", "text": "-사회조사분석사 2급"}, {"company": "skills: spss", "text": "skills: spss"}], "education": [], "awards": ["경북대학교 입시홍보단 크누리 (2019)", "경북대학교 전공알림단 (2020, 2021)", "학생종합지원센터 서포터즈 (2021.2)", "국제교류처 외국인 학부 신편입생 튜터(2021 1학기)", "첨성인 아너스클럽 (2022 후기 졸업생)", "2022 2학기 교육조교(TA)", "한국장학재단 대학생청소년교육지원장학금 (2019~2022)", "한국장학재단 다문화 탈북학생 멘토링(2020, 2021)"], "certs": ["컴퓨터활용능력 1급", "토익스피킹 160"], "etc": ["한국대학교육협의회 전공멘토단 (2021)", "인문 100년 장학생 (2021 선발)"], "linkedin": ""}, {"name": "이정민", "dept": "정치외교학과(18)", "year": "18", "job_type": "", "current": "헬스케어 스타트업 팀원 / 사업 기획(21')", "is_current": false, "experiences": [{"company": "헬스케어 스타트업 팀원 / 사업 기획(21')", "text": "헬스케어 스타트업 팀원 / 사업 기획(21') | 기업 대상 프롬프트 제작 외주(23'); AI 활용 콘텐츠 제작/ 강연 활동(23'); AI 영어 교육 에듀테크 창업 팀 (-24.3)"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "이지민", "dept": "전자공학부(23) / 2023 자율전공부 회장", "year": "23", "job_type": "IT", "current": "", "is_current": false, "experiences": [], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "이채원", "dept": "경영학부(20)", "year": "20", "job_type": "", "current": "KIS자산평가 외화상품실 인턴", "is_current": true, "experiences": [{"company": "KIS자산평가 외화상품실 인턴", "text": "KIS자산평가 외화상품실 인턴 · 2025.04~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "임건이", "dept": "고고인류학과(16)", "year": "16", "job_type": "자동차, 부품, 배터리, 타이어", "current": "유라코퍼레이션, 해외영업팀, 영업관리 매니저", "is_current": true, "experiences": [{"company": "유라코퍼레이션, 해외영업팀, 영업관리 매니저", "text": "유라코퍼레이션, 해외영업팀, 영업관리 매니저 | 피렐리 코리아, 마케팅팀, Operative Analyst; 삼성 SDI, PM그룹, 프로젝트 매니저; 야놀자, 성장전략실, 신사업 마켓 리서처"}], "education": [], "awards": ["美 뉴욕주립대학교 교환학생", "中 유네스코 실크로드 얼라이언스", "日 간사이대학교 파견학생", "佛 버건디경영대학교 언어-문화 교류 프로그램", "Facebook University 3기", "SK SUPEX Ambassador 4기", "Korea-Africa International Forum 대구 대학생 대표", "英 런던정치경제대학교 Best Essay Writing"], "certs": [], "etc": ["경북대학교 우수 졸업생 총장상", "동화제약(주) 활명수 브랜드 마케팅 공모전 대상", "동부그룹 DB대학생 기업모의경영투자대회"], "linkedin": ""}, {"name": "임인호", "dept": "경영학부(18)", "year": "18", "job_type": "증권사, 금융", "current": "공인회계사", "is_current": false, "experiences": [{"company": "공인회계사", "text": "공인회계사"}], "education": [], "awards": ["한국은행 통화정책 경시대회 출전(24.05.)", "경북대학교 경상대학 동아리 문화산업연구회 인사팀장(24.3-24.5.)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "장미라", "dept": "사회학과(17) / 경영학부(복전)", "year": "17", "job_type": "IT", "current": "11번가 회원서비스기획팀 매니저", "is_current": true, "experiences": [{"company": "11번가 회원서비스기획팀 매니저", "text": "11번가 회원서비스기획팀 매니저 · 2023.1.2~"}], "education": [], "awards": ["일반사회교육학과(교직)", "문화산업연구회 25기", "Main&Bits 31기, 33번째 팀장단(2021.07~2021.12)", "KNUAO 38대", "LUWA", "라트비아대학 교환학생", "부산대학교 교류학생", "KNU 튜터"], "certs": ["1. ADsP"], "etc": ["한국장학재단 하계, 동계 대학생 재능기부 캠프", "크누마켓팀 마케팅, 우유팀 PMO", "Clutch League 창업경진대회 장려상", "카카오X구름 해커톤 우수상", "지역아동센터 교육봉사 100시간 수료"], "linkedin": ""}, {"name": "장민지", "dept": "철학과 (17) / 경제통상학부 복수전공", "year": "17", "job_type": "", "current": "미래에셋증권 리서치센터 퀀트RA", "is_current": true, "experiences": [{"company": "미래에셋증권 리서치센터 퀀트RA", "text": "미래에셋증권 리서치센터 퀀트RA · 2023.03 ~ 2024.05"}, {"company": "상상인증권 리서치센터 주식전략RA", "text": "상상인증권 리서치센터 주식전략RA · 2024.05 ~ 2024.07"}, {"company": "iM에셋자산운용 퀀트운용본부 액티브퀀트팀", "text": "iM에셋자산운용 퀀트운용본부 액티브퀀트팀 · 2024.08 ~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "장창영", "dept": "경영학부 BI융합전공(18)", "year": "18", "job_type": "", "current": "경북대학교 대구시 빅데이터 분석과제 학생연구원, ‘인구주택총조사를 이용한", "is_current": false, "experiences": [{"company": "경북대학교 대구시 빅데이터 분석과제 학생연구원, ‘인구주택총조사를 이용한", "text": "경북대학교 대구시 빅데이터 분석과제 학생연구원, ‘인구주택총조사를 이용한 대구 유출인구의 특성분석’ · 21.06~21.08"}, {"company": "대한민국 육군 중위 보병소대장", "text": "대한민국 육군 중위 보병소대장 · 22.03~24.06"}, {"company": "유니클로 PT /", "text": "유니클로 PT / 24.10~25.02 · 20.10~20.12"}], "education": [], "awards": ["18.07 울버햄튼대학교 media course 학점교류", "18.09~12 경북대신문 수습기자", "20.06~12 소셜워치 칼럼니스트", "19.03~06 중소벤처기업부 대구개발자커뮤니티 1기", "21.03~22.12 멋사 8기 및 9기 운영진"], "certs": ["JLPT N1", "JPT 705", "한국사 1급", "한자 3급", "바둑 1단"], "etc": [], "linkedin": ""}, {"name": "장현우", "dept": "경영학부(18)", "year": "18", "job_type": "마케팅, 광고, IT", "current": "당근 Growth Manager 인턴", "is_current": true, "experiences": [{"company": "당근 Growth Manager 인턴", "text": "당근 Growth Manager 인턴 · 23.07~"}, {"company": "포항 테크노파크 행정인턴", "text": "포항 테크노파크 행정인턴 · 18.07~18.08"}], "education": [], "awards": ["현대자동차그룹 점프스쿨(2019)", "외교부 국내서포터즈(2019)", "경북대 IT 프로젝트 팀 크누마켓 마케팅팀(21.11~22.03)", "경북대학교 경상대학 기획/마케팅 학회 M&B 34기(22.03~22.12)", "경북대학교 경상대학 기획/마케팅 학회 M&B 임원단(23.01~23.06)", "인스타그램 knu_notice 운영(22.07~)", "링글 임팩트 프로그램(22.09~)", "KT&G 상상마케팅스쿨(23.05)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "장혜영", "dept": "고고인류학과 (22) / 컴퓨터학부 글로벌소프트웨어전공 복수전공", "year": "22", "job_type": "금융, 데이터, IT, 증권사", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["> 활동", "2024 고고인류학과 학생회장", "경상대학 지하동아리 금융데이터분석학회 DART(23.3~) (부회장: 25-1, 회장: 25-2)", "> 수상", "2023 2학기 산학프로젝트 우수상(2위)", "2024 경상대학 학술제 우수상(3위)", "2024 고고인류학과 학술제 장려상(3위)", "2023 오렌지보드 대학생 크리에이터"], "certs": ["2023 대구빅데이터분석 경진대회 소비자부문 입선", "2024 대구빅데이터분석 경진대회 산업부문 최우수상(1위)"], "etc": ["2024 리모트인턴십 수료", "2024 하나증권 하나드림 서포터즈", "2024 유네스코 지킴이 활동", "> 대회 / 수상", "2023 k-데이터사이언스 해커톤 본선 진출", "2024 KB AI CHALLENGE 본선 진출", "2025 DB 금융경제보험공모전 입선", "2025 한국은행 통화정책 경시대회 대구경북지역 1위, 전국결선 3위"], "linkedin": ""}, {"name": "전가현", "dept": "경영학부(18)", "year": "18", "job_type": "", "current": "미래에셋증권 대구WM 교육생", "is_current": true, "experiences": [{"company": "미래에셋증권 대구WM 교육생", "text": "미래에셋증권 대구WM 교육생 · 21.09~22.04"}, {"company": "신한투자증권 마케팅부 재직", "text": "신한투자증권 마케팅부 재직 · 22.12~재직중"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "정민우", "dept": "행정학부(15)", "year": "15", "job_type": "", "current": "1.NIA 정책기획팀 인턴", "is_current": true, "experiences": [{"company": "1.NIA 정책기획팀 인턴", "text": "1.NIA 정책기획팀 인턴 · 22.11~22.12"}, {"company": "2.신한은행", "text": "2.신한은행 · 23.12~재직중"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "정민호", "dept": "경영학부(18)", "year": "18", "job_type": "", "current": "DGB 대구은행 장기인턴, ICT 기획부", "is_current": true, "experiences": [{"company": "DGB 대구은행 장기인턴, ICT 기획부", "text": "DGB 대구은행 장기인턴, ICT 기획부 · ’23.01 ~ ‘23.07"}, {"company": "LG 이노텍 CORE 인턴십, 구매 외주전략팀", "text": "LG 이노텍 CORE 인턴십, 구매 외주전략팀 · ’23.07 ~ ‘23.08"}, {"company": "현대모비스 재경부문 원가기획실", "text": "현대모비스 재경부문 원가기획실 · ’23.12 ~ 재직중"}, {"company": "파생상품권유자문인력", "text": "파생상품권유자문인력"}], "education": [], "awards": ["○ 대외활동", "현대자동차 대학생교육봉사단 (2021.03 ~ 12)", "복현금융연구회 (2021.09 ~ 2022.06)", "○ 기타", "신라문화장학재단 청아장학생", "크레텍최영수 장학", "한국은행 통계조사보조원"], "certs": ["재경관리사", "신용분석사", "투자자산운용사", "ADsP", "펀드투자권유자문인력", "컴활1급"], "etc": [], "linkedin": ""}, {"name": "정의진", "dept": "사회복지학부(20)", "year": "20", "job_type": "", "current": "EY 한영 Business Consulting Enterprise Ris", "is_current": false, "experiences": [{"company": "EY 한영 Business Consulting Enterprise Ris", "text": "EY 한영 Business Consulting Enterprise Risk ESG Strategy Group Intern · 2023.08"}], "education": [], "awards": [": ISSB S2 공시  BP 도출", ": 탄소중립 전략 프로젝트", ": 기타 리서치/번역/장표 및 보고서작성 등 RA업무 수행", "Sustinvest 솔루션본부 의안분석 인턴 / 리서치본부 지배구조 평가인턴 / 리서치본부 지배구조 애널리스트", ": 2024 정기주주총회 의안분석 보고서 작성을 위한 보조업무 / 지배구조 평가를 위한 로데이터 수집 / 정기주총 의안분석, 지배구조 평가 전문인력"], "certs": [], "etc": [], "linkedin": ""}, {"name": "정태성", "dept": "경제통상학부(17)", "year": "17", "job_type": "", "current": "한국도로공사 청년인턴 인재개발원 교육운영팀", "is_current": true, "experiences": [{"company": "한국도로공사 청년인턴 인재개발원 교육운영팀", "text": "한국도로공사 청년인턴 인재개발원 교육운영팀 · 07.24~22.11."}, {"company": "구미상공회의소 경제조사팀/기업유치팀 (", "text": "구미상공회의소 경제조사팀/기업유치팀 (23.) · 03.01~ 재직중"}, {"company": "국제무역사 1급", "text": "국제무역사 1급"}, {"company": "무역영어 1급", "text": "무역영어 1급"}, {"company": "자산관리사", "text": "자산관리사"}], "education": [], "awards": ["대구환경운동연합 꾸러기 탐사대 보조교사", "KB폴라리스 금융교육 16기", "미래인재 육성재단 장학생", "대구은행 외환사업부 현장실습", "해외학점 취득 프로그램 (리버풀)", "KITS 무역 동아리"], "certs": ["컴활 1급", "한국사 1급", "토익 900", "JLPT N4"], "etc": [], "linkedin": ""}, {"name": "정현우", "dept": "경제통상학부(21)", "year": "21", "job_type": "금융", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["dart 14기"], "certs": ["toeic 920", "노무사 1차"], "etc": [], "linkedin": ""}, {"name": "정혜진", "dept": "경제통상학부 (21)", "year": "21", "job_type": "", "current": "토스페이먼츠 Operation Enablement team ( 04)", "is_current": true, "experiences": [{"company": "토스페이먼츠 Operation Enablement team ( 04)", "text": "토스페이먼츠 Operation Enablement team ( 04) · 2025.01 ~"}, {"company": "에이블리 Ads-biz-Ops manager", "text": "에이블리 Ads-biz-Ops manager"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "조윤제", "dept": "경제통상학부(23) / 편입(21)", "year": "23", "job_type": "금융, 자산운용업, 증권사", "current": "-컴퓨터 활용능력 2급", "is_current": false, "experiences": [{"company": "-컴퓨터 활용능력 2급", "text": "-컴퓨터 활용능력 2급"}], "education": [], "awards": ["2025 경상대학 학술제 최우수상", "증권연구회(25.09~)", "LS증권  X CME 해외선물 모의투자 국가대표 양성 프로그램", "국민연금공단 취업 미래설계아카데미", "청년의 연금 개혁 사회와 진솔한 대화의 장", "B.D.A 11기 (ML)", "비댁스 아이디어톤 본선"], "certs": ["토익(875)", "ADsP"], "etc": [], "linkedin": ""}, {"name": "조희연", "dept": "경제통상학부&BI융합전공(21)", "year": "21", "job_type": "IT, 금융, 데이터", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["2022", "대구시민공익활동 지원센터, 공익활동 씨앗 선정", "대구시 창의도시재생지원센터 대구x청년 소셜리빙랩 공모전 [22.4.1~22.12.31]1,2단계 통과", "글로벌 에코리더 youth 수료, 최우수상, 환경장관부상 수상", "LG생활건강 Esg by you 장려상 수상", "교내 창업해커톤 경진대회 우수상", "교내 청년문제 sos 청솔단 기자단 최우수상", "2023"], "certs": ["컴활 1급", "SQLD", "JLPT N3(2024.01.24)", "OPIC  IH(2024.9)"], "etc": ["멋쟁이사자처럼 11기 프론트엔드 트랙", "K-디지털플랫폼 리빙랩 아이디어 공모전 장려상", "K디지털 지역주민 리빙랩 선정팀", "DB GAPS 투자대회 본선진출", "별빛수기 공모전 장려상", "사이드 프로젝트 프론트엔드 개발진행", "2024", "체코 카렐대 교환학생[2024.2.2~7.4]", "태국친구와 유학생을 위한 체코 보험 안내어플 기획 사이드 프로젝트 진행", "2025", "데이터 라벨링 관련 어플 기획보조 및 디자이너 참여해 배포 후 베타 테스트 진행중", "교육 수료", "모각코 파이썬 기초문법 수료", "재정데이터전문가과정 기초과정 수료", "서비스 기획 완주반 수료", "실전 데이터 분석(python)수료"], "linkedin": ""}, {"name": "주명석", "dept": "심리학과(15) / 경영학부(복수전공)", "year": "15", "job_type": "", "current": "넥슨코리아 사업개발그룹 사업PM", "is_current": true, "experiences": [{"company": "넥슨코리아 사업개발그룹 사업PM", "text": "넥슨코리아 사업개발그룹 사업PM · 24.09~"}, {"company": "샌드박스네트워크 게임광고사업실 BD", "text": "샌드박스네트워크 게임광고사업실 BD · 21.07~24.08"}, {"company": "대학내일 NHR커뮤니케이션즈 채용마케팅 AE 인턴", "text": "대학내일 NHR커뮤니케이션즈 채용마케팅 AE 인턴 · 20.07~20.12"}], "education": [], "awards": ["링크드인"], "certs": [], "etc": [], "linkedin": ""}, {"name": "채상학", "dept": "화학공학과(13)", "year": "13", "job_type": "", "current": "LG화학 Cell개발팀", "is_current": true, "experiences": [{"company": "LG화학 Cell개발팀", "text": "LG화학 Cell개발팀 · 2020.01~2020.11"}, {"company": "LG에너지솔루션 Cell개발팀", "text": "LG에너지솔루션 Cell개발팀 · 2020.11~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "최문석", "dept": "식품자원경제학과(22), 컴퓨터학부 데이터 과학전공 복수전공", "year": "22", "job_type": "IT, 금융", "current": "컴퓨터학부 Vision & Intelligent Systems Lab -", "is_current": false, "experiences": [{"company": "컴퓨터학부 Vision & Intelligent Systems Lab -", "text": "컴퓨터학부 Vision & Intelligent Systems Lab - · 2024.01~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "최민석", "dept": "경영학부(18)", "year": "18", "job_type": "", "current": "임대 운영 및 공급 업무", "is_current": true, "experiences": [{"company": "임대 운영 및 공급 업무", "text": "임대 운영 및 공급 업무 | 재입주설명회 TF팀"}, {"company": "신용보증기금 대구경북영업본부 인턴", "text": "신용보증기금 대구경북영업본부 인턴 · 2024.03~2024.05"}, {"company": "한국자산관리공사 대구경북지역본부 인턴", "text": "한국자산관리공사 대구경북지역본부 인턴 · 2024.05~2024.11"}, {"company": "주택금융공사 제주지사 인턴", "text": "주택금융공사 제주지사 인턴 · 2025.08~2025.11"}, {"company": "NH농협캐피탈 현직", "text": "NH농협캐피탈 현직 · 2025.12 ~"}], "education": [], "awards": ["한국토지주택공사 현장실습"], "certs": [], "etc": [], "linkedin": ""}, {"name": "최성규", "dept": "전자공학부(23)", "year": "23", "job_type": "IT", "current": "문서실무사 1~3급", "is_current": false, "experiences": [{"company": "문서실무사 1~3급", "text": "문서실무사 1~3급"}], "education": [], "awards": ["1. CONTEC 크리에이티브 공모전 17위", "2. IT학술동아리 해달 해커톤 최우수상 수상", "(2025.11)", "1. LS대학생 해외봉사단 28기 (인도네시아) (25.7 - 25.8)", "2. 삼성전자 Campus Coneect (25.7)", "3. 마이크로소프트 해커그라운드 해커톤 (2023.6)"], "certs": ["2. 포토샵(GTQ) 자격증 2급"], "etc": [], "linkedin": ""}, {"name": "최원준", "dept": "전자공학부 (19)", "year": "19", "job_type": "IT, 금융, 데이터", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["금융데이터분석학회(DART) 활동", "DART 14기 코딩교육부장", "하이투자증권X뉴지스탁 서포터즈", "KCC소논문 경진대회 장려상", "환경부 기후변화 공모전 환경부장관상", "경북대 암호공학 연구실 23-03~23-12", "World quant consultant(임시)"], "certs": ["ADsP", "투자자산운용사"], "etc": [], "linkedin": ""}, {"name": "최정은", "dept": "전자공학부(전 자율전공부)(23)", "year": "23", "job_type": "IT, 데이터", "current": "", "is_current": false, "experiences": [], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "표서진", "dept": "경영학부 18", "year": "", "job_type": "", "current": "브이아이자산운용 WM/투자솔루션본부", "is_current": true, "experiences": [{"company": "브이아이자산운용 WM/투자솔루션본부", "text": "브이아이자산운용 WM/투자솔루션본부 · 2023.07 ~"}, {"company": "씨앗자산운용 마케팅팀", "text": "씨앗자산운용 마케팅팀 · 2022.03 ~ 2023.07"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "하도현", "dept": "사학과(17) / 중국문화와경제통상 융합전공", "year": "17", "job_type": "", "current": "국채보상운동기념사업회 인턴(2021)", "is_current": false, "experiences": [{"company": "국채보상운동기념사업회 인턴(2021)", "text": "국채보상운동기념사업회 인턴(2021)"}, {"company": "상공회의소 일경험", "text": "상공회의소 일경험 · 2022.4"}, {"company": "국가철도공단 체험형 인턴(2022)", "text": "국가철도공단 체험형 인턴(2022)"}, {"company": "전산회계 1급", "text": "전산회계 1급"}], "education": [], "awards": ["대구 청년 사회경제적기업 한달살이 프로젝트(2021)", "에듀퓨어 공취가 서포터즈(2021)", "Knu 윈터스쿨 서포터즈(2021)", "경북대학교 학습지원센터(교수)근로(2020)", "경북대학교 학습지원센터(학생)근로(2019)", "경북대학교 사학과 학생회(2018)", "중국 강소대학교 교육과정 수료(2019)"], "certs": ["Hsk 5급", "한국사 1급", "컴퓨터활용능력 1급", "토익스피킹", "Kbs한국어능력시험"], "etc": [], "linkedin": ""}, {"name": "하태규", "dept": "경제통상학부(18)", "year": "18", "job_type": "물류", "current": "한국토지주택공사 현장실습", "is_current": true, "experiences": [{"company": "한국토지주택공사 현장실습", "text": "한국토지주택공사 현장실습 · 2023.03 ~ 2023.08"}, {"company": "제일기획 AE 프리랜서", "text": "제일기획 AE 프리랜서 · 2023.10 ~ 2023.12"}, {"company": "세아제강 물류", "text": "세아제강 물류 · 2024.04 ~"}, {"company": "물류관리사", "text": "물류관리사"}], "education": [], "awards": ["폴란드 바르샤바 대학교 경영 교환학생 (22-1)", "글로벌 MBA 버디활동", "한국교육방송공사 EBS 교육멘토링 멘토"], "certs": ["컴활 1급", "오픽", "토익"], "etc": [], "linkedin": ""}, {"name": "한상범", "dept": "통계학과(20)", "year": "20", "job_type": "", "current": "에듀테크 스타트업_고리 CPO", "is_current": true, "experiences": [{"company": "에듀테크 스타트업_고리 CPO", "text": "에듀테크 스타트업_고리 CPO · 2024.02-2024.12"}, {"company": "이미지 생성 AI 스타트업_ 모드어스 PM", "text": "이미지 생성 AI 스타트업_ 모드어스 PM · 2025.02~"}, {"company": "AI 광고 컨텐츠 제작 스튜디오_ 모드어스스튜디오 대표", "text": "AI 광고 컨텐츠 제작 스튜디오_ 모드어스스튜디오 대표 · 2025.05~"}], "education": [], "awards": ["Contact → moduusai@gmail.com", "gkstkdqja7@gmail.com"], "certs": [], "etc": [], "linkedin": ""}, {"name": "한승훈", "dept": "전자공학부(21 편입)", "year": "", "job_type": "", "current": "現 포스코 EIC기술부 전기기술섹션", "is_current": true, "experiences": [{"company": "現 포스코 EIC기술부 전기기술섹션", "text": "現 포스코 EIC기술부 전기기술섹션 · 25.01~"}], "education": [], "awards": [], "certs": [], "etc": [], "linkedin": ""}, {"name": "현승민", "dept": "경영학부(17) / 결혼해듀오 공모전 최우수상 (2017년)", "year": "17", "job_type": "금융", "current": "1.한국수출입은행", "is_current": true, "experiences": [{"company": "1.한국수출입은행", "text": "1.한국수출입은행 · 24.06~재직중"}], "education": [], "awards": ["단편영화제운영사무국(2017년 7-8)", "국민은행 홍보대사 14기(2019상반기)", "경제교육봉사 교육(2019하반기)", "교내 봉사동아리(2022년 ~2023년)"], "certs": ["한국사1급", "컴퓨터활용능력 1급", "워드프로세서3급"], "etc": [], "linkedin": ""}, {"name": "홍소율", "dept": "인문사회자율전공(23)", "year": "23", "job_type": "광고, 마케팅", "current": "", "is_current": false, "experiences": [], "education": [], "awards": ["경북대학교 교육방송국 영상제작부(23~)", "경북대학교 자율전공부 24대 학생회 홍보부장(23)", "KT&G 상상유니브 소소디 시즌3 - 최우수상(대구광역시장상) (23)"], "certs": [], "etc": [], "linkedin": ""}, {"name": "황라경", "dept": "경영학부(17) / 사회복지 거시(부전공)", "year": "17", "job_type": "교육", "current": "한국가스공사 인재개발원 인재육성부 현장실습", "is_current": true, "experiences": [{"company": "한국가스공사 인재개발원 인재육성부 현장실습", "text": "한국가스공사 인재개발원 인재육성부 현장실습 · 21.7~21.8"}, {"company": "한방바이오융합진흥원 전략기획팀 인턴", "text": "한방바이오융합진흥원 전략기획팀 인턴 · 22.8~22.10"}], "education": [], "awards": ["한국장학재단 다문화, 탈북학생 멘토링(2018, 2021)", "현대자동차 H-점프스쿨(2018)", "푸르덴셜 경제교실 대학생 봉사단(2019)", "T.O.P 29기 및 학술부장(2019-2020)", "대구오페라하우스 홍보 서포터즈(2019)", "대구국제공항 상업시설 확충 아이디어 발굴 프로젝트(2019)", "중소벤처기업진흥공단 대구지역본부 지역안전인식 제고 캠페인 프로젝트 최우수상 수상(2020)", "한국장학재단 비대면 소통전략 개선 프로젝트(2020)"], "certs": ["3. 한국사학진흥재단 재정통계분석부(24.05~재직중)", "컴퓨터활용능력 1급", "한국사능력검정 1급"], "etc": ["대구 청년 사회적경제기업 한달살이 프로젝트(2021)"], "linkedin": ""}, {"name": "황민식", "dept": "경영학부(20)", "year": "20", "job_type": "금융", "current": "국민은행 자본시장본부", "is_current": true, "experiences": [{"company": "국민은행 자본시장본부", "text": "국민은행 자본시장본부 · 23.11~재직중"}, {"company": "국민은행 자본시장본부 채용연계 인턴", "text": "국민은행 자본시장본부 채용연계 인턴 · 23.07~23.10"}, {"company": "예금보험공사 체험형 인턴", "text": "예금보험공사 체험형 인턴 · 23.01~23.02"}, {"company": "자산관리사(FP)", "text": "자산관리사(FP)"}], "education": [], "awards": ["[모의투자] Pair Trading, 국면별 팩터 실효성 검증", "[사용 가능 프로그램] Python/MS Office(PPT, Excel, Word)/Premier Pro/After Effects", "[자격사항]"], "certs": ["투자자산운용사", "컴퓨터활용능력 1급", "워드프로세서"], "etc": [], "linkedin": ""}];
+let ALL_DATA = [...CSV_DATA];
+
+// ── Supabase 설정 ────────────────────────────────────────────────
+const SB_URL = 'https://vkrbdqzwvflrmgwelmfo.supabase.co';
+const SB_KEY = 'sb_publishable_J7WpyPZp2ttSFQA1_ZZB4g_mViK52fQ';
+const SB_HDR = { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY,
+                 'Content-Type': 'application/json', 'Prefer': 'return=minimal' };
+
+async function sbGet(){
+  const r = await fetch(SB_URL+'/rest/v1/members?select=*&order=created_at.asc', {headers: SB_HDR});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbInsertOrUpdate(data){
+  // name 기준 upsert
+  const r = await fetch(SB_URL+'/rest/v1/members?on_conflict=name', {
+    method: 'POST',
+    headers: { ...SB_HDR, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(data),
+  });
+  if(!r.ok) throw new Error(await r.text());
+}
+
+function av(n){ return (n||'?')[0]; }
+
+function renderCard(p){
+  const memberBadge  = p._member    ? '<span class="member-badge">자기소개</span>' : '';
+  const curBadge     = p.is_current ? ' <span class="cur-emp-badge">현직</span>' : '';
+  const jobTag       = p.job_type   ? `<div class="job-tag">${p.job_type}</div>` : '';
+
+  const expHtml = (p.experiences||[]).map(e => {
+    const detail = e.text && e.text !== e.company
+      ? e.text.replace(e.company,'').replace(/^[\s\·\-—]+/,'') : '';
+    const parts = (e.company||'').split(/\s*[,，]\s*/).map(s=>s.trim()).filter(Boolean);
+    const compHtml = parts.map(pt=>
+      `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${pt}</span>`
+    ).join('<span class="exp-sep">, </span>');
+    return `<div class="exp-block">
+       <div class="exp-company-line">${compHtml}</div>
+       ${detail ? `<div class="exp-detail">${detail}</div>` : ''}
+     </div>`;
+  }).join('');
+
+  const sections = [
+    {key:'education', label:'학력'},
+    {key:'awards',    label:'활동/수상'},
+    {key:'certs',     label:'자격증'},
+    {key:'etc',       label:'기타'},
+  ];
+  const extraHtml = sections.map(s => {
+    const items = p[s.key]||[];
+    if(!items.length) return '';
+    return `<div class="sec-title">${s.label}</div>`
+      + items.map(i=>`<div class="sec-item">${i}</div>`).join('');
+  }).join('');
+
+  const hasExtra = sections.some(s=>(p[s.key]||[]).length>0);
+  const toggle = hasExtra
+    ? `<span class="sec-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.textContent=this.textContent==='▼ 더 보기'?'▲ 접기':'▼ 더 보기'">▼ 더 보기</span>
+       <div class="extra">${extraHtml}</div>` : '';
+
+  const badge  = p.current ? `<div class="cur-badge">🏢 ${p.current}</div>` : '';
+  const lilink = p.linkedin ? `<a class="linkedin-link" href="${p.linkedin}" target="_blank">LinkedIn →</a>` : '';
+
+  return `<div class="card">
+    <div class="card-top">
+      <div class="avatar">${av(p.name)}</div>
+      <div><div class="cname">${p.name}${memberBadge}${curBadge}</div><div class="dept">${p.dept||''}</div></div>
+    </div>
+    ${jobTag}${badge}${expHtml}${toggle}${lilink}
+  </div>`;
+}
+
+function render(list){
+  const g = document.getElementById('grid');
+  g.innerHTML = list.length
+    ? list.map(renderCard).join('')
+    : '<div class="no-result">검색 결과 없음</div>';
+  document.getElementById('cnt').textContent = `(${list.length}명)`;
+}
+
+function buildFilters(){
+  const years = [...new Set(ALL_DATA.map(p=>p.year).filter(Boolean))].sort();
+  const bar = document.getElementById('fbar');
+  // 기존 년도 버튼 제거 후 재생성
+  bar.querySelectorAll('.fbtn:not([data-filter=""])').forEach(b=>b.remove());
+  years.forEach(y=>{
+    const b = document.createElement('button');
+    b.className='fbtn'; b.dataset.filter=y;
+    b.textContent=(y.length===2?'20'+y:y)+'학번';
+    bar.appendChild(b);
+  });
+  bar.querySelectorAll('.fbtn').forEach(b=>b.addEventListener('click',()=>{
+    bar.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); applyFilter();
+  }));
+}
+
+function applyFilter(){
+  const q = document.getElementById('search').value.toLowerCase();
+  const f = document.querySelector('.fbtn.active')?.dataset.filter||'';
+  render(ALL_DATA.filter(p=>{
+    const mF = !f||p.year===f;
+    const blob = [p.name,p.dept||'',(p.experiences||[]).map(e=>e.text).join(' '),
+                  p.current||'',(p.education||[]).join(' '),(p.awards||[]).join(' '),
+                  (p.certs||[]).join(' '),(p.etc||[]).join(' ')].join(' ').toLowerCase();
+    return mF && (!q||blob.includes(q));
+  }));
+}
+document.getElementById('search').addEventListener('input', applyFilter);
+
+// ── 회원 API 로드 & 머지 ─────────────────────────────────────────
+function memberToCard(m){
+  const exps = (m.experiences||[]).map(e=>({
+    company: e.company||'',
+    text: [e.company, e.role, e.period].filter(Boolean).join(' · ')
+  })).filter(e=>e.company);
+  const current = exps[0]?.company || '';
+  const edLines = (m.education||[]).map(e=>[e.school,e.major,e.period].filter(Boolean).join(' / '));
+  const certLines = (m.certs||[]).map(c=>[c.name,c.issuer,c.date].filter(Boolean).join(' · '));
+  const etcLines = (m.activities||[]).map(a=>[a.name,a.role,a.period].filter(Boolean).join(' · '));
+  return {
+    name: m.name||'',
+    dept: m.dept||'',
+    year: m.year||'',
+    current,
+    experiences: exps,
+    education: edLines,
+    awards: [],
+    certs: certLines,
+    etc: etcLines,
+    linkedin: m.linkedin||'',
+    _member: true,
+  };
+}
+
+async function loadMembers(){
+  try{
+    const members = await sbGet();
+    if(!members.length) return;
+    const cards = members.map(memberToCard);
+    const existing = new Set(CSV_DATA.map(p=>p.name));
+    const newCards = cards.filter(c=>c.name && !existing.has(c.name));
+    ALL_DATA = [...CSV_DATA, ...newCards];
+    buildFilters();
+    applyFilter();
+  }catch(e){ /* Supabase 연결 실패 시 무시 */ }
+}
+
+const tip = document.getElementById('tooltip');
+let ht = null;
+
+function cleanQuery(raw){
+  return decodeURIComponent(raw)
+    .replace(/주식회사|유한회사|\(주\)|\(유\)|㈜|㈔|\(재\)|\(사\)/g,'')
+    .replace(/\([^)]*\)/g,'')
+    .replace(/[\d]{2,4}[.\-\/~]\S*/g,'')
+    .replace(/\d+기\b/g,'')
+    .replace(/수료|졸업|인턴십?|계약직|정규직|파견|아르바이트|사원|주임|대리|과장|팀장|부장/g,'')
+    .replace(/[`'~_]/g,'')
+    .replace(/\s{2,}/g,' ')
+    .trim();
+}
+
+async function searchWiki(base, query){
+  try{
+    const r=await fetch(base+'/api/rest_v1/page/summary/'+encodeURIComponent(query));
+    if(r.ok){const j=await r.json();if(j.type!=='disambiguation'&&j.extract)return j;}
+  }catch(e){}
+  try{
+    const sr=await fetch(base+'/w/api.php?action=opensearch&search='+encodeURIComponent(query)+'&limit=1&format=json&origin=*');
+    if(sr.ok){
+      const [,titles]=await sr.json();
+      if(titles&&titles[0]){
+        const pr=await fetch(base+'/api/rest_v1/page/summary/'+encodeURIComponent(titles[0]));
+        if(pr.ok){const j=await pr.json();if(j.extract)return j;}
+      }
+    }
+  }catch(e){}
+  return null;
+}
+
+async function fetchWiki(rawQ){
+  const full = cleanQuery(rawQ);
+  if(!full) return null;
+  const words = full.split(/\s+/).filter(w=>w.length>1);
+  const candidates = [full];
+  if(words.length>1) candidates.push(words[0]);
+  if(words.length>2) candidates.push(words.slice(0,2).join(' '));
+  for(const base of ['https://ko.wikipedia.org','https://en.wikipedia.org']){
+    for(const q of candidates){
+      const result = await searchWiki(base, q);
+      if(result) return result;
+    }
+  }
+  return null;
+}
+
+function positionTip(target){
+  const rect=target.getBoundingClientRect();
+  let top=rect.bottom+6, left=rect.left;
+  if(left+310>window.innerWidth) left=window.innerWidth-316;
+  if(top+200>window.innerHeight) top=rect.top-210;
+  tip.style.top=top+'px'; tip.style.left=left+'px';
+}
+
+function showTip(target,q){
+  clearTimeout(ht);
+  tip.innerHTML='<div class="tip-body" style="color:#bbb">검색 중…</div>';
+  tip.classList.add('visible');
+  positionTip(target);
+  fetchWiki(q).then(d=>{
+    if(!tip.classList.contains('visible'))return;
+    if(!d){tip.innerHTML='<div class="tip-body" style="color:#bbb">정보 없음</div>';return;}
+    const th=d.thumbnail?.source?`<img class="tip-thumb" src="${d.thumbnail.source}" alt="">`:' ';
+    tip.innerHTML=th+`<div class="tip-title">${d.title}</div>`
+      +`<div class="tip-body">${(d.extract||'').slice(0,220)}…</div>`
+      +'<div class="tip-src">출처: 위키피디아</div>';
+    positionTip(target);
+  });
+}
+function hideTip(){ht=setTimeout(()=>tip.classList.remove('visible'),200);}
+
+function attachTags(){
+  const grid=document.getElementById('grid');
+  grid.addEventListener('mouseover',e=>{
+    const tag=e.target.closest('.exp-company');
+    if(tag){clearTimeout(ht);showTip(tag,tag.dataset.q);}
+  });
+  grid.addEventListener('mouseout',e=>{
+    if(e.target.closest('.exp-company'))hideTip();
+  });
+}
+
+// ── 회원가입 모달 ────────────────────────────────────────────────
+const overlay = document.getElementById('modal-overlay');
+const modal   = document.getElementById('modal');
+
+document.getElementById('join-btn').addEventListener('click', async ()=>{
+  overlay.classList.add('open');
+  document.getElementById('li-status').textContent='';
+  document.getElementById('login-poll-msg').textContent='';
+  await checkSessionStatus();
+});
+document.querySelector('.modal-close').addEventListener('click', closeModal);
+overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
+function closeModal(){
+  overlay.classList.remove('open');
+  document.getElementById('form-msg').textContent='';
+  clearInterval(_loginPollTimer);
+}
+
+// 세션 상태 확인 → 로그인 버튼 텍스트 업데이트
+async function checkSessionStatus(){
+  try{
+    const r = await fetch('/api/session-status');
+    const j = await r.json();
+    if(j.exists){
+      document.getElementById('login-desc').textContent='이미 로그인되어 있습니다. 아래에서 URL을 입력해 자동 불러오기를 사용하세요.';
+      document.getElementById('li-login-btn').textContent='다시 로그인';
+    }
+  }catch(e){}
+}
+
+// LinkedIn 로그인 버튼
+let _loginPollTimer = null;
+document.getElementById('li-login-btn').addEventListener('click', async()=>{
+  const btn = document.getElementById('li-login-btn');
+  btn.disabled=true; btn.textContent='브라우저 여는 중…';
+  document.getElementById('login-poll-msg').textContent='';
+  try{
+    await fetch('/api/login', {method:'POST'});
+  }catch(e){
+    document.getElementById('login-poll-msg').textContent='서버 연결 실패';
+    btn.disabled=false; btn.textContent='LinkedIn 로그인하기';
+    return;
+  }
+  document.getElementById('login-poll-msg').textContent='브라우저가 열렸습니다. LinkedIn에 로그인해주세요…';
+  // 2초마다 상태 폴링
+  _loginPollTimer = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/login/status');
+      const j = await r.json();
+      document.getElementById('login-poll-msg').textContent = j.msg||'';
+      if(j.state==='done'){
+        clearInterval(_loginPollTimer);
+        document.getElementById('login-desc').textContent='로그인 완료! 아래 URL을 입력해 자동 불러오기를 사용하세요.';
+        document.getElementById('login-poll-msg').textContent='';
+        btn.disabled=false; btn.textContent='다시 로그인';
+      } else if(j.state==='error'||j.state==='timeout'){
+        clearInterval(_loginPollTimer);
+        btn.disabled=false; btn.textContent='다시 시도';
+      }
+    }catch(e){}
+  }, 2000);
+});
+
+// LinkedIn 자동 불러오기
+document.getElementById('li-fetch-btn').addEventListener('click', async()=>{
+  const url = document.getElementById('li-url').value.trim();
+  if(!url){ document.getElementById('li-status').textContent='URL을 입력하세요'; return; }
+  const btn = document.getElementById('li-fetch-btn');
+  btn.disabled=true; btn.textContent='불러오는 중…';
+  document.getElementById('li-status').textContent='LinkedIn 스크래핑 중 (브라우저가 열립니다)…';
+  try{
+    const r = await fetch('/api/scrape?url='+encodeURIComponent(url));
+    const d = await r.json();
+    if(d.error){ document.getElementById('li-status').textContent='오류: '+d.error; return; }
+    prefillForm(d);
+    document.getElementById('li-status').textContent='자동 완성됨. 수정 후 제출하세요.';
+  }catch(e){
+    document.getElementById('li-status').textContent='서버 연결 실패. 수동 입력해 주세요.';
+  }finally{
+    btn.disabled=false; btn.textContent='자동 불러오기';
+  }
+});
+
+function prefillForm(d){
+  if(d.name) document.getElementById('f-name').value = d.name;
+  // 경력 파싱 (pipe 구분)
+  if(d.experience){
+    const exps = d.experience.split(' | ').map(s=>s.trim()).filter(Boolean);
+    clearSection('exp-rows');
+    exps.forEach(e=>addRow('exp-rows', {company: e}));
+    if(!exps.length) addRow('exp-rows',{});
+  }
+  // 학력
+  if(d.education){
+    const edus = d.education.split(' | ').map(s=>s.trim()).filter(Boolean);
+    clearSection('edu-rows');
+    edus.forEach(e=>addRow('edu-rows',{school:e}));
+    if(!edus.length) addRow('edu-rows',{});
+  }
+  // 자격증
+  if(d.certs){
+    const certs = d.certs.split(' | ').map(s=>s.trim()).filter(Boolean);
+    clearSection('cert-rows');
+    certs.forEach(c=>addRow('cert-rows',{name:c}));
+    if(!certs.length) addRow('cert-rows',{});
+  }
+}
+
+// ── 회사명 자동완성 ─────────────────────────────────────────────
+function getLocalCompanies(q){
+  const set = new Set();
+  ALL_DATA.forEach(p=>(p.experiences||[]).forEach(e=>{
+    if(e.company && e.company.toLowerCase().includes(q.toLowerCase())) set.add(e.company);
+  }));
+  return [...set].slice(0, 6);
+}
+
+let _clearbitCache = {};
+async function fetchClearbit(q){
+  if(_clearbitCache[q]) return _clearbitCache[q];
+  try{
+    const r = await fetch('https://autocomplete.clearbit.com/v1/companies/suggest?query='+encodeURIComponent(q));
+    if(!r.ok) return [];
+    const items = await r.json();
+    const result = items.slice(0,5).map(c=>({name:c.name, logo:c.logo||''}));
+    _clearbitCache[q] = result;
+    return result;
+  }catch(e){ return []; }
+}
+
+function attachCompanyAutocomplete(input){
+  const wrap = document.createElement('div');
+  wrap.className = 'ac-wrap';
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+
+  const list = document.createElement('div');
+  list.className = 'ac-list';
+  wrap.appendChild(list);
+
+  let _debounce = null;
+  let _focused = -1;
+  let _items = [];
+
+  function renderList(locals, remotes){
+    _items = [];
+    list.innerHTML = '';
+    locals.forEach(name=>{
+      _items.push(name);
+      const el = document.createElement('div');
+      el.className = 'ac-item';
+      el.innerHTML = `<span>${name}</span><span class="ac-badge local">내부</span>`;
+      el.addEventListener('mousedown', e=>{ e.preventDefault(); input.value=name; hideList(); });
+      list.appendChild(el);
+    });
+    remotes.forEach(c=>{
+      if(locals.some(l=>l.toLowerCase()===c.name.toLowerCase())) return;
+      _items.push(c.name);
+      const el = document.createElement('div');
+      el.className = 'ac-item';
+      const logo = c.logo ? `<img class="ac-logo" src="${c.logo}" onerror="this.style.display='none'">` : '';
+      el.innerHTML = `${logo}<span>${c.name}</span><span class="ac-badge remote">글로벌</span>`;
+      el.addEventListener('mousedown', e=>{ e.preventDefault(); input.value=c.name; hideList(); });
+      list.appendChild(el);
+    });
+    _focused = -1;
+    if(_items.length) list.classList.add('open'); else list.classList.remove('open');
+  }
+
+  function hideList(){ list.classList.remove('open'); _focused=-1; }
+
+  function updateFocus(idx){
+    const els = list.querySelectorAll('.ac-item');
+    els.forEach(e=>e.classList.remove('focused'));
+    if(idx>=0 && idx<els.length){ els[idx].classList.add('focused'); _focused=idx; }
+  }
+
+  input.addEventListener('input', ()=>{
+    const q = input.value.trim();
+    if(q.length < 1){ hideList(); return; }
+    const locals = getLocalCompanies(q);
+    renderList(locals, []);
+    clearTimeout(_debounce);
+    _debounce = setTimeout(async()=>{
+      const remotes = await fetchClearbit(q);
+      if(input.value.trim()===q) renderList(locals, remotes);
+    }, 300);
+  });
+
+  input.addEventListener('keydown', e=>{
+    if(!list.classList.contains('open')) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); updateFocus(Math.min(_focused+1,_items.length-1)); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); updateFocus(Math.max(_focused-1,0)); }
+    else if(e.key==='Enter' && _focused>=0){ e.preventDefault(); input.value=_items[_focused]; hideList(); }
+    else if(e.key==='Escape'){ hideList(); }
+  });
+
+  input.addEventListener('blur', ()=>setTimeout(hideList, 150));
+}
+
+// 동적 행 헬퍼
+function clearSection(id){ document.getElementById(id).innerHTML=''; }
+
+function addRow(sectionId, vals={}){
+  const section = document.getElementById(sectionId);
+  const row = document.createElement('div');
+  row.className='dyn-row';
+
+  const configs = {
+    'exp-rows': [
+      {name:'company', placeholder:'회사명'},
+      {name:'role',    placeholder:'직책 / 포지션'},
+      {name:'period',  placeholder:'기간 (예: 2022.03 ~ 현재)', wide:true},
+    ],
+    'edu-rows': [
+      {name:'school',  placeholder:'학교명'},
+      {name:'major',   placeholder:'전공'},
+      {name:'period',  placeholder:'기간 (예: 2018 ~ 2022)', wide:true},
+    ],
+    'act-rows': [
+      {name:'name',    placeholder:'동아리 / 활동명'},
+      {name:'role',    placeholder:'역할'},
+      {name:'period',  placeholder:'기간', wide:true},
+    ],
+    'cert-rows': [
+      {name:'name',    placeholder:'자격증명'},
+      {name:'issuer',  placeholder:'발급기관'},
+      {name:'date',    placeholder:'취득일 (예: 2023.05)', wide:true},
+    ],
+  };
+
+  const fields = configs[sectionId]||[];
+  let html = '';
+  fields.forEach(f=>{
+    const val = (vals[f.name]||'').replace(/"/g,'&quot;');
+    if(f.wide){
+      html += `<input type="text" name="${f.name}" placeholder="${f.placeholder}" value="${val}">`;
+    } else {
+      html += `<input type="text" name="${f.name}" placeholder="${f.placeholder}" value="${val}">`;
+    }
+  });
+  html += '<button type="button" class="dyn-del" title="삭제">✕</button>';
+  row.innerHTML = html;
+  row.querySelector('.dyn-del').addEventListener('click',()=>row.remove());
+  section.appendChild(row);
+  const compInput = row.querySelector('input[name="company"]');
+  if(compInput) attachCompanyAutocomplete(compInput);
+}
+
+// 각 섹션 + 버튼 초기화
+['exp','edu','act','cert'].forEach(key=>{
+  const sId = key+'-rows';
+  addRow(sId, {});
+  document.getElementById('add-'+key).addEventListener('click',()=>addRow(sId,{}));
+});
+
+// 폼 제출
+document.getElementById('modal-submit').addEventListener('click', async()=>{
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ document.getElementById('form-msg').textContent='이름은 필수입니다'; return; }
+
+  function collectRows(sectionId, fields){
+    return Array.from(document.getElementById(sectionId).querySelectorAll('.dyn-row'))
+      .map(row=>{
+        const obj={};
+        fields.forEach(f=>{
+          const inp = row.querySelector(`input[name="${f}"]`);
+          obj[f] = inp ? inp.value.trim() : '';
+        });
+        return obj;
+      }).filter(obj=>Object.values(obj).some(v=>v));
+  }
+
+  const payload = {
+    name,
+    linkedin: document.getElementById('li-url').value.trim(),
+    experiences: collectRows('exp-rows',['company','role','period']),
+    education:   collectRows('edu-rows',['school','major','period']),
+    activities:  collectRows('act-rows',['name','role','period']),
+    certs:       collectRows('cert-rows',['name','issuer','date']),
+  };
+
+  const btn = document.getElementById('modal-submit');
+  btn.disabled=true; btn.textContent='저장 중…';
+  try{
+    await sbInsertOrUpdate(payload);
+    document.getElementById('form-msg').style.color='#5b5ef4';
+    document.getElementById('form-msg').textContent='저장되었습니다! 명단에 추가됩니다.';
+    await loadMembers();
+    setTimeout(closeModal, 1600);
+  }catch(e){
+    document.getElementById('form-msg').style.color='#e55';
+    document.getElementById('form-msg').textContent='오류: '+e.message;
+  }finally{
+    btn.disabled=false; btn.textContent='제출하기';
+  }
+});
+
+attachTags(); buildFilters(); render(ALL_DATA); loadMembers();
+</script></body></html>
