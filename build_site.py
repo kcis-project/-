@@ -286,6 +286,10 @@ header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.
 .linkedin-link { display: inline-block; margin-top: 8px; font-size: .76rem;
                  color: #333; text-decoration: none; font-weight: 600; }
 .linkedin-link:hover { text-decoration: underline; }
+.card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.card-edit-btn { font-size: .73rem; color: #888; background: none; border: 1px solid #e0e0e0;
+                 border-radius: 7px; padding: 3px 10px; cursor: pointer; transition: all .15s; }
+.card-edit-btn:hover { background: #111; color: #fff; border-color: #111; }
 .no-result { grid-column: 1/-1; text-align: center; color: #bbb; padding: 60px 0; }
 /* 툴팁 */
 #tooltip { position: fixed; z-index: 9999; max-width: 300px; background: #fff;
@@ -472,13 +476,16 @@ function renderCard(p){
 
   const badge  = p.current ? `<div class="cur-badge">🏢 ${p.current}</div>` : '';
   const lilink = p.linkedin ? `<a class="linkedin-link" href="${p.linkedin}" target="_blank">LinkedIn →</a>` : '';
+  const safeN  = p.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const editBtn = `<button class="card-edit-btn" onclick="openEditModal('${safeN}')">✏ 수정</button>`;
 
   return `<div class="card">
     <div class="card-top">
       <div class="avatar">${av(p.name)}</div>
       <div><div class="cname">${p.name}${memberBadge}${curBadge}</div><div class="dept">${p.dept||''}</div></div>
     </div>
-    ${jobTag}${badge}${expHtml}${toggle}${lilink}
+    ${jobTag}${badge}${expHtml}${toggle}
+    <div class="card-footer">${lilink}${editBtn}</div>
   </div>`;
 }
 
@@ -571,12 +578,56 @@ async function loadMembers(){
     const members = await sbGet();
     if(!members.length) return;
     const cards = members.map(memberToCard);
-    const existing = new Set(CSV_DATA.map(p=>p.name));
-    const newCards = cards.filter(c=>c.name && !existing.has(c.name));
-    ALL_DATA = [...CSV_DATA, ...newCards];
+    // Supabase 데이터가 CSV보다 우선 (수정된 정보 반영)
+    const sbNames = new Set(cards.map(c=>c.name));
+    const csvOnly = CSV_DATA.filter(p=>!sbNames.has(p.name));
+    ALL_DATA = [...csvOnly, ...cards];
     buildFilters();
     applyFilter();
   }catch(e){ /* Supabase 연결 실패 시 무시 */ }
+}
+
+function openEditModal(name){
+  const p = ALL_DATA.find(x=>x.name===name);
+  if(!p) return;
+  overlay.classList.add('open');
+  document.getElementById('li-status').textContent='';
+  document.getElementById('login-poll-msg').textContent='';
+  document.getElementById('form-msg').textContent='';
+
+  // 기본 정보
+  document.getElementById('f-name').value = p.name||'';
+  document.getElementById('li-url').value  = p.linkedin||'';
+
+  // 경력
+  clearSection('exp-rows');
+  (p.experiences||[]).forEach(e=>{
+    const role = (e.text||'').replace(e.company||'','').replace(/^[\s·\-—]+/,'').trim();
+    addRow('exp-rows', {company: e.company||'', role, period:''});
+  });
+  if(!(p.experiences||[]).length) addRow('exp-rows',{});
+
+  // 학력
+  clearSection('edu-rows');
+  (p.education||[]).forEach(e=>{
+    addRow('edu-rows', {school: typeof e==='string'?e:(e.school||'')});
+  });
+  if(!(p.education||[]).length) addRow('edu-rows',{});
+
+  // 활동
+  clearSection('act-rows');
+  const acts = p.activities||p.etc||[];
+  acts.forEach(a=>{ addRow('act-rows', {name: typeof a==='string'?a:(a.name||'')}); });
+  if(!acts.length) addRow('act-rows',{});
+
+  // 자격증
+  clearSection('cert-rows');
+  (p.certs||[]).forEach(c=>{
+    addRow('cert-rows', {name: typeof c==='string'?c:(c.name||'')});
+  });
+  if(!(p.certs||[]).length) addRow('cert-rows',{});
+
+  checkSessionStatus();
 }
 
 const tip = document.getElementById('tooltip');
