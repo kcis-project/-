@@ -117,14 +117,21 @@ def parse_person(raw):
     if re.match(r'^[\-\•\·\∙\*\※\○△▶►]', name):
         return None
 
-    # 학과·학번
+    # 학과·학번 + 업종 태그 (이름 다음 8줄 이내의 짧은 키워드)
     dept_lines, year = [], ''
-    for line in non_empty[1:6]:
+    job_tags = []
+    for line in non_empty[1:9]:
         m = DEPT_RE.match(line)
         if m:
             dept_lines.append(line)
             if not year:
                 year = m.group(1)
+        elif (2 <= len(line) <= 15
+              and not re.search(r'[•\-\[\]①②③\(\)~/○]', line)
+              and line not in ('X', 'Y', 'N', 'O')
+              and not TIMESTAMP_RE.match(line)
+              and re.search(r'[가-힣]', line)):
+            job_tags.append(line)
 
     # LinkedIn
     linkedin = ''
@@ -179,6 +186,7 @@ def parse_person(raw):
         'name':        name,
         'dept':        ' / '.join(dept_lines),
         'year':        year,
+        'job_type':    ', '.join(job_tags),
         'current':     current,
         'is_current':  is_current,
         'experiences': experiences[:10],
@@ -483,21 +491,29 @@ function render(list){
 }
 
 function buildFilters(){
-  const years = [...new Set(ALL_DATA.map(p=>p.year).filter(Boolean))].sort();
   const bar = document.getElementById('fbar');
-  // 기존 버튼 제거 후 재생성 (전체 버튼 제외)
   bar.querySelectorAll('.fbtn:not([data-filter=""])').forEach(b=>b.remove());
-  // 현직 필터 버튼
+
+  // 현직 버튼
   const curBtn = document.createElement('button');
   curBtn.className='fbtn'; curBtn.dataset.filter='__current__';
   curBtn.textContent='현직';
   bar.appendChild(curBtn);
-  years.forEach(y=>{
+
+  // 업종 태그 수집 (빈도순)
+  const jobCount = {};
+  ALL_DATA.forEach(p=>{
+    (p.job_type||'').split(/\s*,\s*/).filter(Boolean).forEach(t=>{
+      jobCount[t] = (jobCount[t]||0) + 1;
+    });
+  });
+  Object.entries(jobCount).sort((a,b)=>b[1]-a[1]).forEach(([tag])=>{
     const b = document.createElement('button');
-    b.className='fbtn'; b.dataset.filter=y;
-    b.textContent=(y.length===2?'20'+y:y)+'학번';
+    b.className='fbtn'; b.dataset.filter='__job__'+tag;
+    b.textContent=tag;
     bar.appendChild(b);
   });
+
   bar.querySelectorAll('.fbtn').forEach(b=>b.addEventListener('click',()=>{
     bar.querySelectorAll('.fbtn').forEach(x=>x.classList.remove('active'));
     b.classList.add('active'); applyFilter();
@@ -509,9 +525,13 @@ function applyFilter(){
   const f = document.querySelector('.fbtn.active')?.dataset.filter||'';
   render(ALL_DATA.filter(p=>{
     if(f==='__current__' && !p.is_current) return false;
-    if(f && f!=='__current__' && p.year!==f) return false;
+    if(f.startsWith('__job__')){
+      const tag = f.slice(7);
+      const tags = (p.job_type||'').split(/\s*,\s*/);
+      if(!tags.includes(tag)) return false;
+    }
     if(!q) return true;
-    const blob = [p.name,p.dept||'',(p.experiences||[]).map(e=>e.text).join(' '),
+    const blob = [p.name,p.dept||'',p.job_type||'',(p.experiences||[]).map(e=>e.text).join(' '),
                   p.current||'',(p.education||[]).join(' '),(p.awards||[]).join(' '),
                   (p.certs||[]).join(' '),(p.etc||[]).join(' ')].join(' ').toLowerCase();
     return blob.includes(q);
@@ -533,7 +553,9 @@ function memberToCard(m){
     name: m.name||'',
     dept: m.dept||'',
     year: m.year||'',
+    job_type: m.job_type||'',
     current,
+    is_current: m.is_current||false,
     experiences: exps,
     education: edLines,
     awards: [],
