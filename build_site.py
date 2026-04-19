@@ -6,7 +6,8 @@ Notion CSV → 인원 디렉토리 웹페이지(index.html) 생성
 import csv, json, os, re, sys
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "notion_6f3e0c2cd60182a791ce81c13b66759f_source_.csv")
-OUT_PATH = os.path.join(os.path.dirname(__file__), "directory_site", "index.html")
+OUT_PATH  = os.path.join(os.path.dirname(__file__), "directory_site", "index.html")
+OUT_PATH2 = os.path.join(os.path.dirname(__file__), "docs", "index.html")
 
 TIMESTAMP_RE = re.compile(r'^\d{4}년 \d+월 \d+일')
 DEPT_RE      = re.compile(r'.+\((\d{2}|\d{4})\)')
@@ -1366,11 +1367,12 @@ def main():
     persons = load_persons(CSV_PATH)
     print(f'  → {len(persons)}명 완료')
 
-    os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     html = HTML.replace('__DATA_JSON__', json.dumps(persons, ensure_ascii=False))
-    with open(OUT_PATH, 'w', encoding='utf-8') as f:
-        f.write(html)
-    print(f'\n완료: {OUT_PATH}')
+    for path in [OUT_PATH, OUT_PATH2]:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(html)
+    print(f'\n완료: {OUT_PATH} + docs/index.html')
 
 
 if __name__ == '__main__':
