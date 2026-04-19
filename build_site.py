@@ -231,11 +231,13 @@ CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
        background: #f5f5f5; color: #111; }
-header { background: #fff; border-bottom: 1px solid #e8e8e8; padding: 18px 28px;
+header { background: #fff; border-bottom: 1px solid #e8e8e8; padding: 14px 28px;
          display: flex; align-items: center; gap: 12px; position: sticky; top: 0;
          z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
-header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.02em; }
-.count { font-size: .82rem; color: #999; }
+.knu-logo { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
+.header-title { display: flex; flex-direction: column; gap: 1px; }
+header h1 { font-size: 1.25rem; font-weight: 900; color: #111; letter-spacing: -.03em; line-height: 1; }
+.count { font-size: .72rem; color: #aaa; }
 #search { margin-left: auto; padding: 8px 16px; border: 1.5px solid #ddd;
           border-radius: 20px; font-size: .88rem; width: 220px; outline: none; }
 #search:focus { border-color: #111; }
@@ -1213,7 +1215,8 @@ HTML = (
     '<title>인원 디렉토리</title>'
     '<style>' + CSS + '</style></head><body>'
     '<header>'
-    '  <h1>인원 디렉토리 <span class="count" id="cnt"></span></h1>'
+    '  <img src="https://www.google.com/s2/favicons?domain=knu.ac.kr&sz=64" class="knu-logo" alt="경북대">'
+    '  <div class="header-title"><h1>KCIS</h1><span class="count" id="cnt"></span></div>'
     '  <input id="search" type="text" placeholder="이름·학과·회사·수상 통합 검색…">'
     '  <button id="stat-btn" class="hdr-btn">통계</button>'
     '  <button id="join-btn" class="hdr-btn">회원가입</button>'
