@@ -271,8 +271,10 @@ header h1 { font-size: 1.25rem; font-weight: 900; color: #111; letter-spacing: -
 .exp-block { margin-bottom: 6px; }
 .exp-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; }
 .exp-company { font-size: .82rem; font-weight: 600; color: #222;
-               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline; }
+               cursor: pointer; border-bottom: 1px dashed #ccc;
+               display: inline-flex; align-items: center; gap: 4px; }
 .exp-company:hover { color: #555; }
+.co-logo { width: 13px; height: 13px; object-fit: contain; border-radius: 2px; flex-shrink: 0; }
 .exp-sep { font-size: .82rem; color: #bbb; }
 .exp-detail { font-size: .75rem; color: #777; margin-top: 1px; }
 /* 섹션 토글 */
@@ -454,6 +456,44 @@ async function sbInsertOrUpdate(data){
 
 function av(n){ return (n||'?')[0]; }
 
+const CO_DOMAIN = {
+  '삼성전자':'samsung.com','삼성':'samsung.com','삼성SDS':'samsung.com',
+  'LG전자':'lg.com','LG이노텍':'lg.com','LG화학':'lgchem.com','LG':'lg.com',
+  '현대자동차':'hyundai.com','현대차':'hyundai.com','현대모비스':'mobis.co.kr',
+  '기아':'kia.com','카카오':'kakao.com','카카오뱅크':'kakaobank.com',
+  '카카오페이':'kakaopay.com','카카오엔터프라이즈':'kakaoenterprise.com',
+  '네이버':'naver.com','네이버클라우드':'ncloud.com',
+  'SK하이닉스':'skhynix.com','SK텔레콤':'skt.co.kr','SK':'sk.com',
+  'KT':'kt.com','KT&G':'ktng.com','KDB산업은행':'kdb.co.kr',
+  '한국산업은행':'kdb.co.kr','신한은행':'shinhan.com','신한금융':'shinhan.com',
+  'KB국민은행':'kbstar.com','하나은행':'hanabank.com','우리은행':'wooribank.com',
+  'NH농협은행':'nonghyup.com','IBK기업은행':'ibk.co.kr',
+  '한국투자증권':'truefriend.com','미래에셋':'miraeasset.com',
+  'KB증권':'kbsec.com','삼성증권':'samsungpop.com',
+  'CJ제일제당':'cj.net','CJ':'cj.net','CJ올리브네트웍스':'cjolivenetworks.com',
+  '롯데':'lotte.com','롯데정보통신':'ldcc.co.kr',
+  '포스코':'posco.com','포스코홀딩스':'posco.com',
+  '두산':'doosan.com','한화':'hanwha.com','한화시스템':'hanwhasystems.com',
+  '딜로이트':'deloitte.com','삼일PwC':'pwc.com','EY한영':'ey.com',
+  'KPMG':'kpmg.com','맥킨지':'mckinsey.com','BCG':'bcg.com','베인앤컴퍼니':'bain.com',
+  '구글':'google.com','Google':'google.com','아마존':'amazon.com','Amazon':'amazon.com',
+  '마이크로소프트':'microsoft.com','Microsoft':'microsoft.com',
+  '메타':'meta.com','Meta':'meta.com','애플':'apple.com','Apple':'apple.com',
+  '잡코리아':'jobkorea.co.kr','사람인':'saramin.co.kr',
+  '쿠팡':'coupang.com','배달의민족':'baemin.com','당근마켓':'daangn.com',
+  '토스':'toss.im','뱅크샐러드':'banksalad.com','직방':'zigbang.com',
+  '라인':'linecorp.com','넥슨':'nexon.com','넷마블':'netmarble.com','크래프톤':'krafton.com',
+  '공무원':'gov.kr','국민연금':'nps.or.kr','한국수자원공사':'kwater.or.kr',
+  '한국자산관리공사':'kamco.or.kr','중소벤처기업진흥공단':'kosmes.or.kr',
+};
+
+function getLogoUrl(name){
+  const clean = name.replace(/\s*(주식회사|유한회사|\(주\)|\(유\)|㈜|㈔)\s*/g,'').trim();
+  const domain = CO_DOMAIN[clean] || CO_DOMAIN[clean.split(' ')[0]];
+  if(!domain) return '';
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+}
+
 
 function renderCard(p){
   const memberBadge  = p._member    ? '<span class="member-badge">자기소개</span>' : '';
@@ -464,9 +504,11 @@ function renderCard(p){
     const detail = e.text && e.text !== e.company
       ? e.text.replace(e.company,'').replace(/^[\s\·\-—]+/,'') : '';
     const parts = (e.company||'').split(/\s*[,，]\s*/).map(s=>s.trim()).filter(Boolean);
-    const compHtml = parts.map(pt=>
-      `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${pt}</span>`
-    ).join('<span class="exp-sep">, </span>');
+    const compHtml = parts.map(pt=>{
+      const logo = getLogoUrl(pt);
+      const img  = logo ? `<img class="co-logo" src="${logo}" alt="" onerror="this.remove()">` : '';
+      return `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${img}${pt}</span>`;
+    }).join('<span class="exp-sep">, </span>');
     return `<div class="exp-block">
        <div class="exp-company-line">${compHtml}</div>
        ${detail ? `<div class="exp-detail">${detail}</div>` : ''}
@@ -1084,7 +1126,7 @@ function renderDonut(current, alumni){
   document.getElementById('donut-svg').innerHTML = `
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eee" stroke-width="16"/>
     <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#111" stroke-width="16"
-      stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${circ*0.25}"
+      stroke-dasharray="${dash} ${circ}"
       stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>
     <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle"
       font-size="18" font-weight="800" fill="#111">${pct}%</text>`;
