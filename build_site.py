@@ -269,10 +269,8 @@ header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.
 .exp-block { margin-bottom: 6px; }
 .exp-company-line { display: flex; flex-wrap: wrap; align-items: center; gap: 1px; }
 .exp-company { font-size: .82rem; font-weight: 600; color: #222;
-               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline-flex;
-               align-items: center; gap: 4px; }
+               cursor: pointer; border-bottom: 1px dashed #ccc; display: inline; }
 .exp-company:hover { color: #555; }
-.co-logo { width: 14px; height: 14px; object-fit: contain; border-radius: 2px; flex-shrink: 0; }
 .exp-sep { font-size: .82rem; color: #bbb; }
 .exp-detail { font-size: .75rem; color: #777; margin-top: 1px; }
 /* 섹션 토글 */
@@ -392,10 +390,6 @@ header h1 { font-size: 1.2rem; font-weight: 800; color: #111; letter-spacing: -.
            display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5f5; }
 .ac-item:last-child { border: none; }
 .ac-item:hover, .ac-item.focused { background: #f5f5f5; }
-.ac-logo { width: 18px; height: 18px; object-fit: contain; border-radius: 3px; flex-shrink: 0; }
-.ac-badge { font-size: .63rem; padding: 1px 5px; border-radius: 4px; flex-shrink: 0; margin-left: auto; }
-.ac-badge.local  { background: #111; color: #fff; }
-.ac-badge.remote { background: #eee; color: #888; }
 /* ── 통계 모달 ── */
 #stat-modal { width: 620px; }
 .stat-section { margin-bottom: 24px; }
@@ -458,16 +452,6 @@ async function sbInsertOrUpdate(data){
 
 function av(n){ return (n||'?')[0]; }
 
-function getLogoUrl(name){
-  const clean = name
-    .replace(/주식회사|유한회사|\(주\)|\(유\)|㈜|㈔|\(재\)|\(사\)|코리아|Korea|KOREA/g,'')
-    .replace(/\([^)]*\)/g,'')
-    .replace(/[^a-zA-Z0-9가-힣]/g,'')
-    .trim().toLowerCase();
-  // 한글만 있으면 영문 변환 불가 → 도메인 추정 불가
-  if(/^[가-힣]+$/.test(clean)) return '';
-  return `https://logo.clearbit.com/${clean}.com`;
-}
 
 function renderCard(p){
   const memberBadge  = p._member    ? '<span class="member-badge">자기소개</span>' : '';
@@ -478,11 +462,9 @@ function renderCard(p){
     const detail = e.text && e.text !== e.company
       ? e.text.replace(e.company,'').replace(/^[\s\·\-—]+/,'') : '';
     const parts = (e.company||'').split(/\s*[,，]\s*/).map(s=>s.trim()).filter(Boolean);
-    const compHtml = parts.map(pt=>{
-      const logo = getLogoUrl(pt);
-      const img  = logo ? `<img class="co-logo" src="${logo}" alt="" onerror="this.remove()">` : '';
-      return `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${img}${pt}</span>`;
-    }).join('<span class="exp-sep">, </span>');
+    const compHtml = parts.map(pt=>
+      `<span class="exp-company" data-q="${encodeURIComponent(pt)}">${pt}</span>`
+    ).join('<span class="exp-sep">, </span>');
     return `<div class="exp-block">
        <div class="exp-company-line">${compHtml}</div>
        ${detail ? `<div class="exp-detail">${detail}</div>` : ''}
@@ -870,19 +852,6 @@ function getLocalCompanies(q){
   return [...set].slice(0, 6);
 }
 
-let _clearbitCache = {};
-async function fetchClearbit(q){
-  if(_clearbitCache[q]) return _clearbitCache[q];
-  try{
-    const r = await fetch('https://autocomplete.clearbit.com/v1/companies/suggest?query='+encodeURIComponent(q));
-    if(!r.ok) return [];
-    const items = await r.json();
-    const result = items.slice(0,5).map(c=>({name:c.name, logo:c.logo||''}));
-    _clearbitCache[q] = result;
-    return result;
-  }catch(e){ return []; }
-}
-
 function attachCompanyAutocomplete(input){
   const wrap = document.createElement('div');
   wrap.className = 'ac-wrap';
@@ -897,25 +866,15 @@ function attachCompanyAutocomplete(input){
   let _focused = -1;
   let _items = [];
 
-  function renderList(locals, remotes){
+  function renderList(locals){
     _items = [];
     list.innerHTML = '';
     locals.forEach(name=>{
       _items.push(name);
       const el = document.createElement('div');
       el.className = 'ac-item';
-      el.innerHTML = `<span>${name}</span><span class="ac-badge local">내부</span>`;
+      el.innerHTML = `<span>${name}</span>`;
       el.addEventListener('mousedown', e=>{ e.preventDefault(); input.value=name; hideList(); });
-      list.appendChild(el);
-    });
-    remotes.forEach(c=>{
-      if(locals.some(l=>l.toLowerCase()===c.name.toLowerCase())) return;
-      _items.push(c.name);
-      const el = document.createElement('div');
-      el.className = 'ac-item';
-      const logo = c.logo ? `<img class="ac-logo" src="${c.logo}" onerror="this.style.display='none'">` : '';
-      el.innerHTML = `${logo}<span>${c.name}</span><span class="ac-badge remote">글로벌</span>`;
-      el.addEventListener('mousedown', e=>{ e.preventDefault(); input.value=c.name; hideList(); });
       list.appendChild(el);
     });
     _focused = -1;
@@ -933,13 +892,7 @@ function attachCompanyAutocomplete(input){
   input.addEventListener('input', ()=>{
     const q = input.value.trim();
     if(q.length < 1){ hideList(); return; }
-    const locals = getLocalCompanies(q);
-    renderList(locals, []);
-    clearTimeout(_debounce);
-    _debounce = setTimeout(async()=>{
-      const remotes = await fetchClearbit(q);
-      if(input.value.trim()===q) renderList(locals, remotes);
-    }, 300);
+    renderList(getLocalCompanies(q));
   });
 
   input.addEventListener('keydown', e=>{
