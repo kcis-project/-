@@ -25,6 +25,17 @@ SECTION_MAP = {
 }
 
 
+CERT_KEYWORDS_RE = re.compile(
+    r'^[\-\•\·\∙\*\※\○]?\s*('
+    r'토익|토플|TOEIC|TOEFL|OPIc|오픽|JPT|JLPT|HSK|'
+    r'재경관리사|투자파생상품관리인|투자자산운용사|신용분석사|자산관리사|'
+    r'컴퓨터활용능력|정보처리기사|정보처리산업기사|한국사능력검정|'
+    r'ADsP|ADSP|SQLD|SQLP|AWS|정보보안기사|네트워크관리사|'
+    r'공인중개사|세무사|회계사|감정평가사|노무사'
+    r')',
+    re.IGNORECASE
+)
+
 def is_noise(text):
     t = text.strip()
     return (not t or TIMESTAMP_RE.match(t) or t in ('인원 리스트', '이름')
@@ -102,6 +113,9 @@ def parse_person(raw):
         return None
     if len(name) > 20 or len(name) < 2:
         return None
+    # 불릿/대시로 시작하는 줄은 이름이 아님 (예: "- 토익")
+    if re.match(r'^[\-\•\·\∙\*\※\○△▶►]', name):
+        return None
 
     # 학과·학번
     dept_lines, year = [], ''
@@ -136,14 +150,27 @@ def parse_person(raw):
             continue
         buckets[cur_bucket].append(line.strip())
 
+    # 경력 버킷에서 자격증 키워드 줄 → cert 버킷으로 이동
+    exp_filtered = []
+    for line in buckets['exp']:
+        if CERT_KEYWORDS_RE.search(line):
+            buckets['cert'].append(line)
+        else:
+            exp_filtered.append(line)
+    buckets['exp'] = exp_filtered
+
     # 경력 파싱 (회사 단위로 묶기)
     experiences = parse_experiences(buckets['exp'])
 
-    # 현재 재직 중
+    # 현재 재직 중 감지
+    CURRENT_MARKERS = ('재직', '현재', '재직중', '~ )', '~)', '현재)','present','Present')
     current = ''
+    is_current = False
     for exp in experiences:
-        if '재직' in exp['text'] or '현재' in exp['text'] or '~)' in exp['text']:
+        t = exp['text']
+        if any(m in t for m in CURRENT_MARKERS):
             current = exp['company']
+            is_current = True
             break
     if not current and experiences:
         current = experiences[0]['company']
@@ -153,6 +180,7 @@ def parse_person(raw):
         'dept':        ' / '.join(dept_lines),
         'year':        year,
         'current':     current,
+        'is_current':  is_current,
         'experiences': experiences[:10],
         'education':   [l for l in buckets['edu']  if l],
         'awards':      [l for l in buckets['award'] if l],
