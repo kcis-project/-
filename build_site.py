@@ -497,6 +497,35 @@ const CO_DOMAIN = {
   '오픈서베이':'opensurvey.co.kr','중고나라':'joonggonara.co.kr',
 };
 
+// 대학교 도메인 매핑
+const UNI_DOMAIN = {
+  '경북대':'knu.ac.kr','서울대':'snu.ac.kr','연세대':'yonsei.ac.kr',
+  '고려대':'korea.ac.kr','성균관대':'skku.edu','한양대':'hanyang.ac.kr',
+  '이화여대':'ewha.ac.kr','이화여자대':'ewha.ac.kr','서강대':'sogang.ac.kr',
+  '중앙대':'cau.ac.kr','경희대':'khu.ac.kr','한국외대':'hufs.ac.kr',
+  '부산대':'pusan.ac.kr','전남대':'jnu.ac.kr','전북대':'jbnu.ac.kr',
+  '충남대':'cnu.ac.kr','충북대':'chungbuk.ac.kr','강원대':'kangwon.ac.kr',
+  '인하대':'inha.ac.kr','아주대':'ajou.ac.kr','숙명여대':'sookmyung.ac.kr',
+  '국민대':'kookmin.ac.kr','건국대':'konkuk.ac.kr','동국대':'dongguk.edu',
+  '홍익대':'hongik.ac.kr','세종대':'sejong.ac.kr','단국대':'dankook.ac.kr',
+  '울산대':'ulsan.ac.kr','대구대':'daegu.ac.kr','계명대':'kmu.ac.kr',
+  '영남대':'yu.ac.kr','대구경북과학기술원':'dgist.ac.kr','DGIST':'dgist.ac.kr',
+  'KAIST':'kaist.ac.kr','POSTECH':'postech.ac.kr','UNIST':'unist.ac.kr',
+  '포항공대':'postech.ac.kr','광운대':'kw.ac.kr','명지대':'mju.ac.kr',
+  '숭실대':'ssu.ac.kr','한국항공대':'kau.ac.kr','항공대':'kau.ac.kr',
+  '서울시립대':'uos.ac.kr','서울과기대':'seoultech.ac.kr',
+  'ICN':'icn-bs.fr','Yale':'yale.edu','하버드':'harvard.edu',
+  'Harvard':'harvard.edu','Stanford':'stanford.edu',
+  'Malaya':'um.edu.my','Carnegie Mellon':'cmu.edu',
+};
+
+function getUniLogoUrl(text){
+  for(const [kw, domain] of Object.entries(UNI_DOMAIN)){
+    if(text.includes(kw)) return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  }
+  return '';
+}
+
 // 그룹 계열사 키워드 → 대표 도메인 (삼성SDIO, LG이노텍 등 자동 처리)
 const GROUP_KEYWORDS = [
   ['삼성','samsung.com'],['LG','lg.com'],['현대','hyundai.com'],
@@ -549,7 +578,14 @@ function renderCard(p){
     const items = p[s.key]||[];
     if(!items.length) return '';
     return `<div class="sec-title">${s.label}</div>`
-      + items.map(i=>`<div class="sec-item">${i}</div>`).join('');
+      + items.map(i => {
+          if(s.key === 'education'){
+            const ulogo = getUniLogoUrl(String(i));
+            const img = ulogo ? `<img class="co-logo" src="${ulogo}" alt="" onerror="this.remove()">` : '';
+            return `<div class="sec-item" style="display:flex;align-items:center;gap:5px">${img}${i}</div>`;
+          }
+          return `<div class="sec-item">${i}</div>`;
+        }).join('');
   }).join('');
 
   const hasExtra = sections.some(s=>(p[s.key]||[]).length>0);
