@@ -457,8 +457,13 @@ function render(list){
 function buildFilters(){
   const years = [...new Set(ALL_DATA.map(p=>p.year).filter(Boolean))].sort();
   const bar = document.getElementById('fbar');
-  // 기존 년도 버튼 제거 후 재생성
+  // 기존 버튼 제거 후 재생성 (전체 버튼 제외)
   bar.querySelectorAll('.fbtn:not([data-filter=""])').forEach(b=>b.remove());
+  // 현직 필터 버튼
+  const curBtn = document.createElement('button');
+  curBtn.className='fbtn'; curBtn.dataset.filter='__current__';
+  curBtn.textContent='현직';
+  bar.appendChild(curBtn);
   years.forEach(y=>{
     const b = document.createElement('button');
     b.className='fbtn'; b.dataset.filter=y;
@@ -475,11 +480,13 @@ function applyFilter(){
   const q = document.getElementById('search').value.toLowerCase();
   const f = document.querySelector('.fbtn.active')?.dataset.filter||'';
   render(ALL_DATA.filter(p=>{
-    const mF = !f||p.year===f;
+    if(f==='__current__' && !p.is_current) return false;
+    if(f && f!=='__current__' && p.year!==f) return false;
+    if(!q) return true;
     const blob = [p.name,p.dept||'',(p.experiences||[]).map(e=>e.text).join(' '),
                   p.current||'',(p.education||[]).join(' '),(p.awards||[]).join(' '),
                   (p.certs||[]).join(' '),(p.etc||[]).join(' ')].join(' ').toLowerCase();
-    return mF && (!q||blob.includes(q));
+    return blob.includes(q);
   }));
 }
 document.getElementById('search').addEventListener('input', applyFilter);
@@ -616,7 +623,7 @@ document.getElementById('join-btn').addEventListener('click', async ()=>{
   document.getElementById('login-poll-msg').textContent='';
   await checkSessionStatus();
 });
-document.querySelector('.modal-close').addEventListener('click', closeModal);
+document.querySelector('#modal-overlay .modal-close').addEventListener('click', closeModal);
 overlay.addEventListener('click', e=>{ if(e.target===overlay) closeModal(); });
 function closeModal(){
   overlay.classList.remove('open');
