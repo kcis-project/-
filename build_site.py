@@ -457,41 +457,65 @@ async function sbInsertOrUpdate(data){
 function av(n){ return (n||'?')[0]; }
 
 const CO_DOMAIN = {
-  '삼성전자':'samsung.com','삼성':'samsung.com','삼성SDS':'samsung.com',
-  'LG전자':'lg.com','LG이노텍':'lg.com','LG화학':'lgchem.com','LG':'lg.com',
-  '현대자동차':'hyundai.com','현대차':'hyundai.com','현대모비스':'mobis.co.kr',
-  '기아':'kia.com','카카오':'kakao.com','카카오뱅크':'kakaobank.com',
-  '카카오페이':'kakaopay.com','카카오엔터프라이즈':'kakaoenterprise.com',
-  '네이버':'naver.com','네이버클라우드':'ncloud.com',
-  'SK하이닉스':'skhynix.com','SK텔레콤':'skt.co.kr','SK':'sk.com',
-  'KT':'kt.com','KT&G':'ktng.com','KDB산업은행':'kdb.co.kr',
-  '한국산업은행':'kdb.co.kr','신한은행':'shinhan.com','신한금융':'shinhan.com',
-  'KB국민은행':'kbstar.com','하나은행':'hanabank.com','우리은행':'wooribank.com',
+  // 대기업 계열 (키워드 매핑으로도 처리, 여기선 대표 도메인)
+  '삼성':'samsung.com','LG':'lg.com','현대':'hyundai.com','기아':'kia.com',
+  'SK':'sk.com','롯데':'lotte.com','CJ':'cj.net','한화':'hanwha.com',
+  '두산':'doosan.com','GS':'gsretail.co.kr','포스코':'posco.com','LS':'ls-electric.com',
+  // 금융
+  '신한은행':'shinhan.com','신한금융':'shinhan.com','신한투자증권':'shinhaninvest.com',
+  'KB국민은행':'kbstar.com','KB증권':'kbsec.com','KB손해보험':'kbinsure.co.kr',
+  '하나은행':'hanabank.com','하나증권':'hanasec.co.kr',
+  '우리은행':'wooribank.com','우리금융':'woorifg.com',
   'NH농협은행':'nonghyup.com','IBK기업은행':'ibk.co.kr',
+  'KDB산업은행':'kdb.co.kr','한국산업은행':'kdb.co.kr',
   '한국투자증권':'truefriend.com','미래에셋':'miraeasset.com',
-  'KB증권':'kbsec.com','삼성증권':'samsungpop.com',
-  'CJ제일제당':'cj.net','CJ':'cj.net','CJ올리브네트웍스':'cjolivenetworks.com',
-  '롯데':'lotte.com','롯데정보통신':'ldcc.co.kr',
-  '포스코':'posco.com','포스코홀딩스':'posco.com',
-  '두산':'doosan.com','한화':'hanwha.com','한화시스템':'hanwhasystems.com',
+  '삼성증권':'samsungpop.com','키움증권':'kiwoom.com','대신증권':'daishin.com',
+  'LS증권':'lssec.co.kr','NH투자증권':'nhqv.com',
+  // 공기업 / 공공기관
+  '국민연금':'nps.or.kr','국민연금공단':'nps.or.kr',
+  '신용보증기금':'kodit.or.kr','기술보증기금':'kibo.or.kr',
+  '한국부동산원':'reb.or.kr','한국감정원':'reb.or.kr',
+  '한국재정정보원':'kfis.re.kr',
+  '한국수자원공사':'kwater.or.kr','한국전력':'kepco.co.kr',
+  '한국자산관리공사':'kamco.or.kr','한국토지주택공사':'lh.or.kr',
+  '중소벤처기업진흥공단':'kosmes.or.kr','대구은행':'dgb.co.kr',
+  'KT':'kt.com','KT&G':'ktng.com',
+  '한국마사회':'kra.co.kr','인천국제공항공사':'airport.kr',
+  // 컨설팅/회계
   '딜로이트':'deloitte.com','삼일PwC':'pwc.com','EY한영':'ey.com',
   'KPMG':'kpmg.com','맥킨지':'mckinsey.com','BCG':'bcg.com','베인앤컴퍼니':'bain.com',
-  '구글':'google.com','Google':'google.com','아마존':'amazon.com','Amazon':'amazon.com',
-  '마이크로소프트':'microsoft.com','Microsoft':'microsoft.com',
-  '메타':'meta.com','Meta':'meta.com','애플':'apple.com','Apple':'apple.com',
-  '잡코리아':'jobkorea.co.kr','사람인':'saramin.co.kr',
+  // 빅테크
+  'Google':'google.com','구글':'google.com','Amazon':'amazon.com','아마존':'amazon.com',
+  'Microsoft':'microsoft.com','마이크로소프트':'microsoft.com',
+  'Meta':'meta.com','메타':'meta.com','Apple':'apple.com','애플':'apple.com',
+  // 스타트업/플랫폼
+  '카카오':'kakao.com','네이버':'naver.com','라인':'linecorp.com',
   '쿠팡':'coupang.com','배달의민족':'baemin.com','당근마켓':'daangn.com',
   '토스':'toss.im','뱅크샐러드':'banksalad.com','직방':'zigbang.com',
-  '라인':'linecorp.com','넥슨':'nexon.com','넷마블':'netmarble.com','크래프톤':'krafton.com',
-  '공무원':'gov.kr','국민연금':'nps.or.kr','한국수자원공사':'kwater.or.kr',
-  '한국자산관리공사':'kamco.or.kr','중소벤처기업진흥공단':'kosmes.or.kr',
+  '잡코리아':'jobkorea.co.kr','사람인':'saramin.co.kr',
+  '넥슨':'nexon.com','넷마블':'netmarble.com','크래프톤':'krafton.com',
+  '오픈서베이':'opensurvey.co.kr','중고나라':'joonggonara.co.kr',
 };
+
+// 그룹 계열사 키워드 → 대표 도메인 (삼성SDIO, LG이노텍 등 자동 처리)
+const GROUP_KEYWORDS = [
+  ['삼성','samsung.com'],['LG','lg.com'],['현대','hyundai.com'],
+  ['기아','kia.com'],['SK','sk.com'],['롯데','lotte.com'],
+  ['CJ','cj.net'],['한화','hanwha.com'],['두산','doosan.com'],
+  ['포스코','posco.com'],['GS','gsretail.co.kr'],['카카오','kakao.com'],
+  ['네이버','naver.com'],['신한','shinhan.com'],['KB','kbstar.com'],
+  ['하나','hanabank.com'],['농협','nonghyup.com'],['미래에셋','miraeasset.com'],
+];
 
 function getLogoUrl(name){
   const clean = name.replace(/\s*(주식회사|유한회사|\(주\)|\(유\)|㈜|㈔)\s*/g,'').trim();
-  const domain = CO_DOMAIN[clean] || CO_DOMAIN[clean.split(' ')[0]];
-  if(!domain) return '';
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  // 1. 직접 매핑
+  if(CO_DOMAIN[clean]) return `https://www.google.com/s2/favicons?domain=${CO_DOMAIN[clean]}&sz=64`;
+  // 2. 그룹 키워드 매핑 (계열사 자동 처리)
+  for(const [kw, domain] of GROUP_KEYWORDS){
+    if(clean.includes(kw)) return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  }
+  return '';
 }
 
 
